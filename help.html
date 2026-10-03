@@ -343,7 +343,8 @@ body {
   <h1 id="page-title">📚 SWS Help & Documentation</h1>
   <a href="index.html" class="back-link" id="back-link">← Back to Home</a>
   <div class="language-switcher">
-    <button class="lang-btn active" data-lang="ja">日本語</button>
+    <button class="lang-btn active" data-lang="ja">日本語</button>  
+    <button class="lang-btn active" data-lang="jayo">洋ゲー日本語</button>
     <button class="lang-btn" data-lang="en-US">English (US)</button>
     <button class="lang-btn" data-lang="en-GB">English (UK)</button>
     <button class="lang-btn" data-lang="de">Deutsch</button>
@@ -696,6 +697,331 @@ snd("piano", 4, F4);</div>
           
           <div class="success">
             <strong>✅ サポート：</strong> 問題が発生した場合は、<a href="https://github.com/neon-0039/SWS-WebConsole/issues" style="color: var(--success);">GitHub Issues</a> で報告してください。
+          </div>
+        `
+      }
+    ]
+  },
+  'jayo': {
+    'page-title': '📚 SWS 救助要請 & 文書の山',
+    'back-link': '← 家（ホーム）に引き返す',
+    'toc-title': '目の目次（インデックス）',
+    'toc-started': '第一歩を踏み出す',
+    'toc-syntax': '基本の文法構造',
+    'toc-commands': '命令語のリファレンス（参照）',
+    'toc-instruments': '音を奏でる具（楽器）',
+    'toc-advanced': '高度で複雑な機能',
+    'toc-examples': '見本・例の公衆晒し',
+    'toc-faq': '頻繁に尋ねられる質問の群れ',
+    'sections': [
+      {
+        'id': 'getting-started',
+        'title': '🚀 第一歩を踏み出す',
+        'content': `
+          <p>SWS 蜘蛛の巣 慰めへようこそおいで下さった！この案内の手引きでは、SWSの基本的な取り扱い方法を暴露します。</p>
+          
+          <h4>最初の歩み（ステップ）</h4>
+          <ol class="list-style">
+            <li>SWS 蜘蛛の巣 慰めを開放します</li>
+            <li>暗号の編纂者（コードエディタ）に暗号を打ち込むか、既に存在する .ss または .ust の文書を開放します</li>
+            <li>「▶ Play（遊戯）」の牡丹（ボタン）を突き刺して再生します</li>
+            <li>「Export WAV（WAVの輸出）」牡丹で音声を降臨させて降ろします</li>
+          </ol>
+          
+          <div class="note">
+            <strong>💡 助言の光：</strong> 初めての暗号の試行を行うには、慰めの内部にある初期の暗号をそのまま「遊戯」してみてください。
+          </div>
+          
+          <h4>文書の荷降ろし（読み込み）</h4>
+          <p>「Open（開放）」牡丹により、以下の文書の型式に対応しております：</p>
+          <ul class="list-style">
+            <li>.ss - SWS台本（スクリプト）型式</li>
+            <li>.ust - UTAU 連続文言（Sequence Text）型式</li>
+          </ul>
+        `
+      },
+      {
+        'id': 'basic-syntax',
+        'title': '📝 基本の文法構造',
+        'content': `
+          <p>SWSは単純かつ可読性の高い台本の言葉なり。全ての宣言文は半コロコロ（;）にて終焉を迎えます。</p>
+          
+          <h4>基本の掟</h4>
+          <ul class="list-style">
+            <li>全ての命令語は半コロコロ（;）にて終焉します</li>
+            <li>注釈（コメント）は &lt;...&gt; の檻で取り囲みます</li>
+            <li>文字列は引用の爪 (" または ') で抱きかかえます</li>
+            <li>命令語は大文字小文字のサイズを差別・区別しません</li>
+          </ul>
+          
+          <h4>注釈（コメント）</h4>
+          <div class="code-block">&lt;これは注釈（コメント）なり&gt;
+snd("piano", 4, C4); &lt;ここもまた注釈なり&gt;</div>
+          
+          <h4>データの型枠</h4>
+          <div class="table-wrapper">
+            <table class="syntax-table">
+              <thead>
+                <tr>
+                  <th>型枠</th>
+                  <th>見本</th>
+                  <th>解釈</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>数々の値</td>
+                  <td>120, 4.5, 8</td>
+                  <td>速度（テンポ）、長さの尺など</td>
+                </tr>
+                <tr>
+                  <td>文字の連なり</td>
+                  <td>"piano", "C4"</td>
+                  <td>奏でる具、書物（Note）の名など</td>
+                </tr>
+                <tr>
+                  <td>配列（配列）</td>
+                  <td>[C4, E4, G4]</td>
+                  <td>fsn（数多の書物）にて使用を展開</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `
+      },
+      {
+        'id': 'commands',
+        'title': '⚙️ 命令語のリファレンス（参照）',
+        'content': `
+          <h4>tempoconst - 最初の速度の固定</h4>
+          <p>文書の最初において使用を展開します。1回限りの設定が許されます。</p>
+          <div class="code-block">tempoconst="120";</div>
+          <div class="table-wrapper">
+            <table class="syntax-table">
+              <thead>
+                <tr><th>媒介変数（パラメータ）</th><th>型枠</th><th>解釈</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>tempo</td><td>数々の値</td><td>BPM（1分間の鼓動）: 30-500</td></tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <h4>newtempo - 新しき速度</h4>
+          <p>現在の指針（カーソル）の位置より速度を改ざんします。何回でも召喚可能です。</p>
+          <div class="code-block">newtempo="150";</div>
+          
+          <h4>key - 鍵の設定</h4>
+          <p>鍵の署名（キーシグネチャー）を設置します。音の書物は自動的に鍵に屈して補正されます。</p>
+          <div class="code-block">key="C";</div>
+          <p><strong>対応する鍵：</strong> C, G, D, A, E, B, F#, F, Bb, Eb, Ab, Db, Am, Em, Bm, F#m, C#m, G#m, Dm, Gm, Cm, Fm</p>
+          
+          <h4>snd - 音声の響き</h4>
+          <p>音の書物を響かせます。最も猛烈に使用される命令語です。</p>
+          <div class="code-block">snd("piano", 4, C4);</div>
+          <div class="table-wrapper">
+            <table class="syntax-table">
+              <thead>
+                <tr><th>媒介変数</th><th>型枠</th><th>解釈</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>instrument</td><td>文字の連なり</td><td>奏でる具の姓名</td></tr>
+                <tr><td>length</td><td>数々の値</td><td>音の物理的長さ（4=4分音符, 8=8分音符など）</td></tr>
+                <tr><td>pitch</td><td>文字の連なり</td><td>高低（C4, C#4, null など）</td></tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <h4>sleep - 睡眠（休符）</h4>
+          <p>指定された鼓動の数だけ沈黙を保ち熟睡します。</p>
+          <div class="code-block">sleep(4);</div>
+          
+          <h4>chips - 馬鈴薯片（チップ）の定義</h4>
+          <p>再利用が可能な暗号の塊を定義・召喚します。</p>
+          <div class="code-block">chips riff(){
+    snd("piano", 8, C4);
+    snd("piano", 8, E4);
+}</div>
+          
+          <h4>chips() - 馬鈴薯片の召喚</h4>
+          <p>定義した馬鈴薯片を大声で呼び出します。</p>
+          <div class="code-block">chips(riff);</div>
+          
+          <h4>lp - 輪っか（ループ）</h4>
+          <p>暗号の塊を指定された回数だけぐるぐる巡らせます。</p>
+          <div class="code-block">lp(4){
+    snd("piano", 8, C4);
+}</div>
+          
+          <h4>-cnt- - 同時の処刑（同時実行）</h4>
+          <p>複数の snd() 命令語を同じ時間軸で同時に処刑します。</p>
+          <div class="code-block">snd("piano", 4, C4)-cnt-snd("bass", 4, C2);</div>
+        `
+      },
+      {
+        'id': 'instruments',
+        'title': '🎹 音を奏でる具（楽器）',
+        'content': `
+          <p>SWSは以下の音を奏でる具を後押し支援しています。</p>
+          
+          <div class="table-wrapper">
+            <table class="syntax-table">
+              <thead>
+                <tr><th>分類（カテゴリー）</th><th>具の姓名</th><th>解釈</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>鍵盤具</td><td>piano, grand_piano</td><td>古典的なピアノの響き</td></tr>
+                <tr><td>人工音合成</td><td>synth, synth_lead, synth_bass</td><td>電子的な音楽用</td></tr>
+                <tr><td>低音具</td><td>bass</td><td>低周波の底底ベース</td></tr>
+                <tr><td>太鼓</td><td>drum, kick, snare, hihat, hi_hat</td><td>打撃音</td></tr>
+                <tr><td>波の形</td><td>sine, square, triangle, saw, sawtooth</td><td>根本的な波の形</td></tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="note">
+            <strong>💡 助言の光：</strong> 異なる具で同じ旋律（メロディ）を実験し、音の相違を聴き比べて平伏してください。
+          </div>
+        `
+      },
+      {
+        'id': 'advanced',
+        'title': '⭐ 高度で複雑な機能',
+        'content': `
+          <h4>和音（数多の書物）</h4>
+          <p>fsn=[] 文法を行使して和音を錬金します。</p>
+          <div class="code-block">snd("piano", 4, fsn=[C4, E4, G4]);</div>
+          <p>全ての書物は同時に爆発して響きます。</p>
+          
+          <h4>侮辱（Slur / Note Legato）</h4>
+          <p>書物の名の後に ~ を付与し、次の同じ高低の書物へ繋ぎ止めます。</p>
+          <div class="code-block">snd("piano", 4, C4~);
+snd("piano", 4, C4);</div>
+          
+          <h4>鍵補正の迂回（バイパス）</h4>
+          <p>! を突き刺すと鍵の補正を無視して暴走します。</p>
+          <div class="code-block">key="C";
+snd("piano", 4, F#4!); &lt;F#はC鍵に屈しない&gt;</div>
+          
+          <h4>複合された修飾語</h4>
+          <p>侮辱と迂回を悪魔合体させることができます。</p>
+          <div class="code-block">snd("piano", 4, C4~!); &lt;侮辱＆迂回&gt;</div>
+          
+          <h4>Lyric（歌詩）の属性</h4>
+          <p>書物に歌詩を付与して命を吹き込みます。USTの輸出時に使用されます。</p>
+          <div class="code-block">snd("piano", 4, C4, Lyric="あ");</div>
+          
+          <h4>追跡 (Track / Class)</h4>
+          <p>複数の追跡（トラック）を独立して支配・管理します。</p>
+          <div class="code-block">snd("piano", 4, C4, class="melody");
+snd("bass", 4, C2, class="bass");</div>
+          
+          <div class="note">
+            <strong>💡 助言の光：</strong> 蜘蛛の巣 慰めではUIにて追跡を管理でき、文書の保存時に勝手にclass属性が寄生します。
+          </div>
+        `
+      },
+      {
+        'id': 'examples',
+        'title': '📖 見本・例の公衆晒し',
+        'content': `
+          <h4>見本1: 単純な旋律</h4>
+          <div class="code-block">tempoconst="120";
+key="C";
+
+snd("piano", 4, C4);
+snd("piano", 4, D4);
+snd("piano", 4, E4);
+snd("piano", 4, F4);</div>
+          
+          <h4>見本2: 和音の行進</h4>
+          <div class="code-block">tempoconst="120";
+key="C";
+
+snd("piano", 4, fsn=[C4, E4, G4]);
+snd("piano", 4, fsn=[F4, A4, C5]);
+snd("piano", 4, fsn=[G4, B4, D5]);
+snd("piano", 4, fsn=[C4, E4, G4]);</div>
+          
+          <h4>見本3: 数多の音の作曲</h4>
+          <div class="code-block">tempoconst="120";
+key="C";
+
+snd("piano", 4, C4, class="melody");
+snd("bass", 4, C2, class="bass");
+
+sleep(4);
+
+snd("piano", 4, E4, class="melody");
+snd("bass", 4, E2, class="bass");</div>
+          
+          <h4>見本4: 輪っかと馬鈴薯片</h4>
+          <div class="code-block">tempoconst="120";
+
+chips pattern(){
+    snd("synth", 8, C4);
+    snd("synth", 8, E4);
+    snd("synth", 8, G4);
+}
+
+lp(4){
+    chips(pattern);
+}</div>
+          
+          <h4>見本5: 速度の改ざん</h4>
+          <div class="code-block">tempoconst="120";
+
+snd("piano", 4, C4);
+snd("piano", 4, D4);
+
+newtempo="150";
+
+snd("piano", 4, E4);
+snd("piano", 4, F4);</div>
+        `
+      },
+      {
+        'id': 'faq',
+        'title': '❓ 頻繁に尋ねられる質問の群れ',
+        'content': `
+          <h4>Q: 音の響きが耳に届きません</h4>
+          <p><strong>A:</strong> 以下の事項を直ちに検分してください：</p>
+          <ul class="list-style">
+            <li>閲覧者（ブラウザ）の音量が沈黙（ミュート）に陥っていないか</li>
+            <li>頁（ページ）が完全に召喚し終えているか</li>
+            <li>暗号に災い（エラー）が無いか（慰めの出力を注視）</li>
+            <li>奏でる具の姓名が正義であるか</li>
+          </ul>
+          
+          <h4>Q: UST 文書を輸入できません</h4>
+          <p><strong>A:</strong> 以下の事項を検分してください：</p>
+          <ul class="list-style">
+            <li>文書のしっぽ（拡張子）が .ust であること</li>
+            <li>文書が正統な UTAU 型式であること</li>
+            <li>文字の暗号化が UTF-8 または Shift-JIS の血統であること</li>
+          </ul>
+          
+          <h4>Q: 複数の追跡（トラック）の同期が不全を起こします</h4>
+          <p><strong>A:</strong> -cnt- を振りかざして同時に処刑してください：</p>
+          <div class="code-block">snd("piano", 4, C4)-cnt-snd("bass", 4, C2);</div>
+          
+          <h4>Q: 輸出された WAV の品質を高みに引き上げたいです</h4>
+          <p><strong>A:</strong> 現在は 44.1kHz の呪いで固定されていますが、閲覧者の設定等で品質を変貌させられる場合があります。</p>
+          
+          <h4>Q: 侮辱（Slur）が正しく機能しません</h4>
+          <p><strong>A:</strong> 侮辱の対象となる書物の以下を検分してください：</p>
+          <ul class="list-style">
+            <li>同一の高低（ピッチ）であること</li>
+            <li>時間軸において連続して結合していること</li>
+            <li>~ の記号が刻印されていること</li>
+          </ul>
+          
+          <div class="warning">
+            <strong>⚠️ 警告の血文字：</strong> SWSはまだ成長途中の未熟な道具なり。予期せぬ挙動や限界が存在します。
+          </div>
+          
+          <div class="success">
+            <strong>✅ 救済の手の差し伸べ：</strong> 災いが発生した場合は、<a href="https://github.com/neon-0039/SWS-WebConsole/issues" style="color: var(--success);">GitHub Issues（訴訟・報告場）</a> で叫んでください。
           </div>
         `
       }
