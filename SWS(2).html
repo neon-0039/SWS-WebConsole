@@ -1284,45 +1284,8 @@ input[type="color"] {
 
 <script>
 /*
- * Phase 1 intentionally contains no compiler, parser, Web Audio,
- * MIDI, WAV, UST, plugin, or Piano Roll implementation.
- *
- * The following DOM contracts are reserved for the next phase:
- *
- * Editor:
- *   #codeEditor
- *   #highlightLayer
- *   #highlightCode
- *   #lineNumbers
- *   #editorScroll
- *
- * Toolbar:
- *   #openButton
- *   #saveButton
- *   #compileButton
- *   #playButton
- *   #stopButton
- *   #midiButton
- *   #wavButton
- *   #ustButton
- *   #pluginButton
- *
- * Tracks:
- *   #trackPanel
- *   #trackList
- *   [data-track-name]
- *   [data-class-name]
- *
- * Console and errors:
- *   #consoleOutput
- *   #errorPanel
- *   #errorLine
- *   #errorType
- *   #errorMessage
- *
- * Future Event Model / Piano Roll:
- *   #pianoRollModule
- *   [data-event-model-source="sws-editor"]
+ * Editor presentation bootstrap. The SWS compiler and runtime are
+ * initialized by the application script below.
  */
 (() => {
   "use strict";
@@ -1769,6 +1732,9 @@ input[type="color"] {
     ].forEach(id => {
       DOM[id] = $(id);
     });
+    DOM.tempo = DOM.tempoValue;
+    DOM.key = DOM.keyValue;
+    DOM.cursor = DOM.cursorValue;
   }
 
   class SWSError extends Error {
@@ -2012,6 +1978,77 @@ input[type="color"] {
       return structuredClone(value);
     }
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function ensureExtension(filename, extension) {
+    const value = String(filename || "").trim() || "song";
+    return value.toLowerCase().endsWith(extension.toLowerCase())
+      ? value
+      : `${value}${extension}`;
+  }
+
+  function outputFilename(filename, type) {
+    const value = String(filename || "").trim() || "song";
+    if (type === "midi" && /\.(?:mid|midi)$/i.test(value)) {
+      return value;
+    }
+    const extension = {
+      ss: ".ss",
+      wav: ".wav",
+      midi: ".mid",
+      ust: ".ust"
+    }[type];
+    return ensureExtension(value, extension);
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = String(filename).split(/[\\/]/).pop() || "download";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function log(message, type = "info") {
+    if (!DOM.consoleOutput) return;
+    const line = document.createElement("div");
+    line.className = `console-line ${type}`;
+    line.textContent = String(message);
+    DOM.consoleOutput.appendChild(line);
+    DOM.consoleOutput.scrollTop = DOM.consoleOutput.scrollHeight;
+  }
+
+  function setStatus(message, dirty = false) {
+    if (DOM.editorStatusText) {
+      DOM.editorStatusText.textContent = message;
+    }
+    if (DOM.editorStatusDot) {
+      DOM.editorStatusDot.classList.toggle("dirty", Boolean(dirty));
+    }
+  }
+
+  function clearError() {
+    state.errorLines.clear();
+    if (DOM.errorPanel) DOM.errorPanel.classList.remove("visible");
+    if (DOM.errorLine) DOM.errorLine.textContent = "—";
+    if (DOM.errorType) DOM.errorType.textContent = "—";
+    if (DOM.errorMessage) DOM.errorMessage.textContent = "—";
+  }
+
+  function reportError(error) {
+    const swsError = error instanceof SWSError
+      ? error
+      : new SWSError(1, error?.name || "Error", error?.message || String(error));
+    state.errorLines.add(swsError.line);
+    if (DOM.errorPanel) DOM.errorPanel.classList.add("visible");
+    if (DOM.errorLine) DOM.errorLine.textContent = String(swsError.line);
+    if (DOM.errorType) DOM.errorType.textContent = swsError.type;
+    if (DOM.errorMessage) DOM.errorMessage.textContent = swsError.message;
+    log(`Line ${swsError.line}: ${swsError.type}: ${swsError.message}`, "error");
   }
 
   function validateTempo(value, line) {
@@ -2751,6 +2788,7 @@ input[type="color"] {
       this.chipStack = new Set();
       this.tempoconstSet = false;
       this.mainCursor = 0;
+      this.currentUstClass = null;
     }
 
     compile() {
@@ -3019,7 +3057,9 @@ input[type="color"] {
         type: match[1].toLowerCase(),
         filename: parseQuoted(args[0], line, "output filename"),
         line,
-        className: null
+        className: match[1].toLowerCase() === "ust"
+          ? this.currentUstClass
+          : null
       });
     }
 
@@ -3064,6 +3104,7 @@ input[type="color"] {
 
       const name = parseQuoted(args[0], line, "class name");
       this.project.ensureTrack(name);
+      this.currentUstClass = name;
     }
 
     compileChipsCall(text, line) {
@@ -3574,7 +3615,7 @@ input[type="color"] {
     }
   }
 
-  function compileCurrent() {
+  function compileCurrent(processOutputs = true) {
     if (!DOM.codeEditor) return null;
 
     const project = compileSource(
@@ -3604,8 +3645,44 @@ input[type="color"] {
       );
     }
 
-    runPlugins(project);
+    try {
+      runPlugins(project);
+      if (processOutputs) processOutputRequests(project);
+    } catch (error) {
+      reportError(error);
+      if (DOM.compileStatus) DOM.compileStatus.textContent = "Compile failed";
+      setStatus("Error", false);
+      return null;
+    }
     return project;
+  }
+
+  function getCurrentProject() {
+    return state.dirty || !state.project
+      ? compileCurrent(false)
+      : state.project;
+  }
+
+  function processOutputRequests(project) {
+    for (const type of ["ss", "wav", "midi", "ust"]) {
+      const requests = project.outputRequests.filter(
+        request => request.type === type
+      );
+      for (const request of requests) {
+        try {
+          if (type === "ss") saveSs(request, project);
+          if (type === "wav") exportWav(project, request);
+          if (type === "midi") exportMidi(project, request);
+          if (type === "ust") exportUst(project, request);
+        } catch (error) {
+          throw new SWSError(
+            request.line,
+            "OutputError",
+            `${type.toUpperCase()} output failed: ${error.message || error}`
+          );
+        }
+      }
+    }
   }
 
   function updateProjectInfo(project) {
@@ -3718,51 +3795,78 @@ input[type="color"] {
   }
 
   function openFile(file) {
-    const reader = new FileReader();
+    const isUst = file.name.toLowerCase().endsWith(".ust");
+    const decodeUst = async () => {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const hasUtf16Bom =
+        (bytes[0] === 0xff && bytes[1] === 0xfe) ||
+        (bytes[0] === 0xfe && bytes[1] === 0xff);
+      const encodings = hasUtf16Bom
+        ? ["utf-16", "utf-8", "shift_jis"]
+        : ["utf-8", "shift_jis", "utf-16"];
 
-    reader.onload = () => {
+      for (const encoding of encodings) {
+        try {
+          return {
+            text: new TextDecoder(encoding, { fatal: true }).decode(bytes),
+            encoding
+          };
+        } catch (_) {}
+      }
+
+      log(
+        "UST text encoding could not be detected; decoding with UTF-8 replacement characters.",
+        "warning"
+      );
+      return {
+        text: new TextDecoder("utf-8").decode(bytes),
+        encoding: "utf-8 (replacement)"
+      };
+    };
+
+    (async () => {
       try {
-        const text = String(reader.result || "");
+        const decoded = isUst
+          ? await decodeUst()
+          : {
+              text: await file.text(),
+              encoding: "utf-8"
+            };
+        const text = isUst ? ustToSs(decoded.text) : decoded.text;
+        DOM.codeEditor.value = text;
 
-        if (file.name.toLowerCase().endsWith(".ust")) {
-          DOM.codeEditor.value = ustToSs(text);
-          log("UST translated to SS", "success");
+        if (isUst) {
+          const baseName = file.name.replace(/\.ust$/i, "");
+          state.fileName = `${baseName}.ss`;
+          log(`UST translated to SS (${decoded.encoding})`, "success");
         } else {
-          DOM.codeEditor.value = text;
+          state.fileName = file.name;
           log("Loaded .ss", "success");
         }
 
-        state.fileName = file.name;
-        state.source = DOM.codeEditor.value;
+        state.source = text;
         state.dirty = false;
-
         if (DOM.editorFileName) {
-          DOM.editorFileName.textContent = file.name;
+          DOM.editorFileName.textContent = state.fileName;
         }
 
         refreshEditor();
         compileCurrent();
       } catch (error) {
-        reportError(error);
+        reportError(error instanceof SWSError
+          ? error
+          : new SWSError(1, "FileError", `failed to read file: ${error.message || error}`));
       }
-    };
-
-    reader.onerror = () => {
-      reportError(new SWSError(
-        1,
-        "FileError",
-        "failed to read file"
-      ));
-    };
-
-    reader.readAsText(file);
+    })();
   }
 
-  function saveSs() {
-    const source = DOM.codeEditor?.value || state.source;
-    const filename = ensureExtension(
-      state.fileName || "song",
-      ".ss"
+  function saveSs(request = null, project = state.project) {
+    const source = request && project
+      ? project.source
+      : DOM.codeEditor?.value || state.source;
+    const filename = outputFilename(
+      request?.filename || state.fileName || "song",
+      "ss"
     );
 
     downloadBlob(
@@ -3789,67 +3893,125 @@ input[type="color"] {
   }
 
   function ustToSs(text) {
-    const lines = String(text).split(/\r?\n/);
+    const lines = String(text).replace(/^\uFEFF/, "").split(/\r?\n/);
     const notes = [];
     let current = null;
+    let currentNoteLine = 1;
+    let section = "";
     let tempo = 120;
+    let lineNumber = 0;
+
+    const finishNote = () => {
+      if (!current) return;
+      const rawLength = current.Length ?? "480";
+      const rawNoteNumber = current.NoteNum ?? "60";
+      if (!/^\d+$/.test(rawLength)) {
+        throw new SWSError(currentNoteLine, "ValueError", `invalid Length: ${rawLength}`);
+      }
+      if (!/^-?\d+$/.test(rawNoteNumber)) {
+        throw new SWSError(currentNoteLine, "ValueError", `invalid NoteNum: ${rawNoteNumber}`);
+      }
+      const length = Number(rawLength);
+      const noteNumber = Number(rawNoteNumber);
+      if (length <= 0) {
+        throw new SWSError(currentNoteLine, "ValueError", "Length must be greater than 0");
+      }
+      if (noteNumber < 0 || noteNumber > 127) {
+        throw new SWSError(currentNoteLine, "ValueError", `NoteNum out of range: ${noteNumber}`);
+      }
+      notes.push({
+        length,
+        noteNumber,
+        lyric: String(current.Lyric || "").trim()
+      });
+      current = null;
+    };
 
     for (const raw of lines) {
+      lineNumber++;
       const line = raw.trim();
-
       if (!line) continue;
 
-      if (line.startsWith("Tempo=")) {
-        tempo = Number(line.slice(6)) || tempo;
+      const header = line.match(/^\[#([^\]]+)\]$/);
+      if (header) {
+        finishNote();
+        const name = header[1];
+        if (name === "TRACKEND") break;
+        if (name === "SETTING" || name === "VERSION") {
+          section = name;
+        } else if (/^\d+$/.test(name)) {
+          section = "NOTE";
+          current = {};
+          currentNoteLine = lineNumber;
+        } else {
+          throw new SWSError(
+            lineNumber,
+            "SyntaxError",
+            `unsupported UST section: [${name}]`
+          );
+        }
         continue;
       }
 
-      if (/^\[#\d+\]$/.test(line)) {
-        if (current) notes.push(current);
-        current = {};
-        continue;
-      }
+      const separator = line.indexOf("=");
+      if (separator < 0) continue;
+      const name = line.slice(0, separator).trim();
+      const value = line.slice(separator + 1).trim();
 
-      if (line === "[#TRACKEND]") {
-        if (current) notes.push(current);
-        current = null;
-        break;
-      }
-
-      if (current && line.includes("=")) {
-        const index = line.indexOf("=");
-        current[line.slice(0, index)] =
-          line.slice(index + 1);
+      if (section === "SETTING" && name === "Tempo") {
+        const parsedTempo = Number(value);
+        if (!Number.isFinite(parsedTempo) || parsedTempo <= 0 || parsedTempo > 500) {
+          throw new SWSError(
+            lineNumber,
+            "ValueError",
+            `invalid Tempo value: ${value}`
+          );
+        }
+        tempo = parsedTempo;
+      } else if (section === "NOTE" && current) {
+        current[name] = value;
       }
     }
+    finishNote();
+
+    const beatsToDuration = beats => {
+      if (beats <= 0) return "4";
+      const denominator = 4 / beats;
+      if (Math.abs(denominator - Math.round(denominator)) < 1e-9) {
+        return String(Math.round(denominator));
+      }
+      const dotted = denominator / 1.5;
+      if (Math.abs(dotted - Math.round(dotted)) < 1e-9) {
+        return `${Math.round(dotted)}+`;
+      }
+      return String(Math.round(denominator));
+    };
 
     const result = [`tempoconst="${tempo.toFixed(2)}";`, ""];
-
     for (const note of notes) {
-      const length = Number(note.Length || 480);
-      const beats = length / 480;
-      const denominator = 4 / beats;
-      const duration = Number.isInteger(denominator)
-        ? String(denominator)
-        : String(Math.round(denominator));
-      const lyric = note.Lyric || "R";
-
-      if (!note.NoteNum || lyric.toUpperCase() === "R") {
+      const duration = beatsToDuration(note.length / 480);
+      if (note.lyric.toUpperCase() === "R") {
         result.push(`sleep(${duration});`);
-      } else {
-        result.push(
-          `snd("synth",${duration},${midiToPitch(Number(note.NoteNum))} Lyric="${escapeString(lyric)}");`
-        );
+        continue;
       }
-    }
 
+      const lyric = note.lyric
+        ? ` Lyric="${escapeString(note.lyric)}"`
+        : "";
+      result.push(
+        `snd("synth",${duration},${midiToPitch(note.noteNumber)}${lyric});`
+      );
+    }
     return result.join("\n");
   }
 
-  function exportUst(project = state.project || compileCurrent()) {
+  function exportUst(
+    project = getCurrentProject(),
+    request = null
+  ) {
     if (!project) return;
 
-    const request = project.outputRequests.find(
+    request ||= project.outputRequests.find(
       item => item.type === "ust"
     );
 
@@ -3858,6 +4020,13 @@ input[type="color"] {
       .filter(event => !className || event.className === className)
       .slice()
       .sort((a, b) => a.start - b.start || a.line - b.line);
+    if (className && !events.length) {
+      throw new SWSError(
+        request.line,
+        "ValueError",
+        `UST class '${className}' not found`
+      );
+    }
 
     const lines = [
       "[#VERSION]",
@@ -3925,10 +4094,7 @@ input[type="color"] {
 
     lines.push("[#TRACKEND]", "");
 
-    const filename = ensureExtension(
-      request?.filename || "song",
-      ".ust"
-    );
+    const filename = outputFilename(request?.filename || "song", "ust");
 
     downloadBlob(
       new Blob([lines.join("\n")], {
@@ -3977,8 +4143,14 @@ input[type="color"] {
     return result;
   }
 
-  function exportMidi(project = state.project || compileCurrent()) {
+  function exportMidi(
+    project = getCurrentProject(),
+    request = null
+  ) {
     if (!project) return;
+    request ||= project.outputRequests.find(
+      item => item.type === "midi"
+    );
 
     const queue = [];
 
@@ -4066,10 +4238,13 @@ input[type="color"] {
           ...track
         ])
       ], { type: "audio/midi" }),
-      "song.mid"
+      outputFilename(request?.filename || "song", "midi")
     );
 
-    log("output success:midi,song.mid", "success");
+    log(
+      `output success:midi,${outputFilename(request?.filename || "song", "midi")}`,
+      "success"
+    );
   }
 
   // ============================================================
@@ -4162,12 +4337,24 @@ input[type="color"] {
     return 440 * Math.pow(2, (note.midi - 69) / 12);
   }
 
-  function exportWav(project = state.project || compileCurrent()) {
+  function exportWav(
+    project = getCurrentProject(),
+    request = null
+  ) {
     if (!project) return;
+    request ||= project.outputRequests.find(
+      item => item.type === "wav"
+    );
+    if (!project.events.length) {
+      throw new SWSError(1, "ValueError", "no sound events");
+    }
 
     const totalBeat = project.events.length
       ? Math.max(...project.events.map(event => event.end))
       : 0;
+    if (totalBeat <= 0) {
+      throw new SWSError(1, "ValueError", "total duration is zero");
+    }
     const totalSeconds = project.tempoMap.beatToSeconds(totalBeat);
     const sampleCount = Math.max(
       1,
@@ -4221,10 +4408,13 @@ input[type="color"] {
 
     downloadBlob(
       makeWavBlob(pcm, SAMPLE_RATE),
-      "song.wav"
+      outputFilename(request?.filename || "song", "wav")
     );
 
-    log("output success:wav,song.wav", "success");
+    log(
+      `output success:wav,${outputFilename(request?.filename || "song", "wav")}`,
+      "success"
+    );
   }
 
   function makeWavBlob(samples, sampleRate) {
@@ -4267,7 +4457,7 @@ input[type="color"] {
     return "sine";
   }
 
-  async function playProject(project = state.project || compileCurrent()) {
+  async function playProject(project = getCurrentProject()) {
     if (!project) return;
 
     stopPlayback();
@@ -4447,7 +4637,13 @@ input[type="color"] {
   function runPlugins(project) {
     for (const request of project.plugins) {
       const source = state.plugins.get(request.name);
-      if (!source) continue;
+      if (source === undefined) {
+        throw new SWSError(
+          request.line,
+          "FileNotFoundError",
+          `plugin '${request.name}' has not been loaded`
+        );
+      }
 
       try {
         const plugin = new Function(
@@ -4458,11 +4654,11 @@ input[type="color"] {
         plugin(clone(project.toPluginData()));
         log(`Plugin executed: ${request.name}`, "success");
       } catch (error) {
-        reportError(new SWSError(
+        throw new SWSError(
           request.line,
           "RuntimeError",
           `plugin '${request.name}' failed: ${error.message || error}`
-        ));
+        );
       }
     }
   }
@@ -4523,33 +4719,33 @@ input[type="color"] {
     DOM.compileButton?.addEventListener("click", compileCurrent);
 
     DOM.playButton?.addEventListener("click", () => {
-      playProject(state.project || compileCurrent());
+      playProject(getCurrentProject());
     });
 
     DOM.stopButton?.addEventListener("click", stopPlayback);
 
     DOM.midiButton?.addEventListener("click", () => {
-      exportMidi(state.project || compileCurrent());
+      exportMidi(getCurrentProject());
     });
 
     DOM.wavButton?.addEventListener("click", () => {
-      exportWav(state.project || compileCurrent());
+      exportWav(getCurrentProject());
     });
 
     DOM.ustButton?.addEventListener("click", () => {
-      exportUst(state.project || compileCurrent());
+      exportUst(getCurrentProject());
     });
 
     DOM.exportMidiButton?.addEventListener("click", () => {
-      exportMidi(state.project || compileCurrent());
+      exportMidi(getCurrentProject());
     });
 
     DOM.exportWavButton?.addEventListener("click", () => {
-      exportWav(state.project || compileCurrent());
+      exportWav(getCurrentProject());
     });
 
     DOM.exportUstButton?.addEventListener("click", () => {
-      exportUst(state.project || compileCurrent());
+      exportUst(getCurrentProject());
     });
 
     DOM.exportSsButton?.addEventListener("click", saveSs);
