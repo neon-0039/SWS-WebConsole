@@ -786,7 +786,7 @@ input[type="color"] {
   font-size: 11px;
 }
 
-/* Generic modals retained for future JavaScript modules */
+/* Modal dialogs */
 
 .modal-overlay {
   position: fixed;
@@ -826,6 +826,12 @@ input[type="color"] {
   margin: 10px 0 6px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.modal-message {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .modal-actions {
@@ -1214,25 +1220,13 @@ input[type="color"] {
   </main>
 </div>
 
-<!-- Track modal: behavior will be implemented in a later JavaScript phase. -->
 <div id="trackModal" class="modal-overlay" aria-hidden="true">
   <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="trackModalTitle">
     <h3 id="trackModalTitle">Add Track</h3>
 
-    <label for="trackNameInput">Track / Class name</label>
+    <p id="trackModalMessage" class="modal-message"></p>
+    <label id="trackNameLabel" for="trackNameInput">Track / Class name</label>
     <input id="trackNameInput" type="text" placeholder="e.g. melody">
-
-    <label for="trackColorInput">Track color</label>
-    <input id="trackColorInput" type="color" value="#2196f3">
-
-    <label for="trackInstrumentInput">Default instrument</label>
-    <select id="trackInstrumentInput">
-      <option value="piano">piano</option>
-      <option value="synth">synth</option>
-      <option value="bass">bass</option>
-      <option value="drum">drum</option>
-      <option value="sine">sine</option>
-    </select>
 
     <div class="modal-actions">
       <button id="trackModalCancel" type="button">Cancel</button>
@@ -1356,6 +1350,7 @@ input[type="color"] {
   const commandNames = [
     "snd",
     "sleep",
+    "sleepticks",
     "lp",
     "chips",
     "tempoconst",
@@ -1559,68 +1554,9 @@ input[type="color"] {
    * 実際のスクロール位置はeditorScrollから取得する。
    */
   function syncScroll() {
-    const left = editorScroll.scrollLeft;
     const top = editorScroll.scrollTop;
-
-    highlightLayer.style.transform =
-      `translate(${-left}px, ${-top}px)`;
-
-    codeEditor.style.transform =
-      `translate(${-left}px, ${-top}px)`;
-
     lineNumbers.scrollTop = top;
   }
-
-  /*
-   * textarea入力。
-   */
-  codeEditor.addEventListener("input", () => {
-    refreshEditor();
-  });
-
-  /*
-   * textareaのスクロールイベント。
-   *
-   * ブラウザによってtextarea自身がスクロールする場合に備える。
-   */
-  codeEditor.addEventListener("scroll", () => {
-    editorScroll.scrollLeft = codeEditor.scrollLeft;
-    editorScroll.scrollTop = codeEditor.scrollTop;
-    syncScroll();
-  });
-
-  /*
-   * 共通スクロールコンテナのスクロール。
-   */
-  editorScroll.addEventListener("scroll", () => {
-    syncScroll();
-  });
-
-  /*
-   * Tabキーを入力した場合、フォーカスを失わせず、
-   * 半角スペース2文字を入力する。
-   */
-  codeEditor.addEventListener("keydown", (event) => {
-    if (event.key !== "Tab") {
-      return;
-    }
-
-    event.preventDefault();
-
-    const start = codeEditor.selectionStart;
-    const end = codeEditor.selectionEnd;
-    const value = codeEditor.value;
-
-    codeEditor.value =
-      value.slice(0, start) +
-      "  " +
-      value.slice(end);
-
-    codeEditor.selectionStart = start + 2;
-    codeEditor.selectionEnd = start + 2;
-
-    refreshEditor();
-  });
 
   /*
    * ウィンドウサイズ変更時にも行位置を維持する。
@@ -1629,22 +1565,6 @@ input[type="color"] {
     refreshEditor();
     syncScroll();
   });
-
-  /*
-   * 初期内容。
-   *
-   * 文字を表示できることを確認するための最小サンプル。
-   * 既に内容がある場合は上書きしない。
-   */
-  if (!codeEditor.value) {
-    codeEditor.value = [
-      'tempoconst="120";',
-      "",
-      'snd("piano",4,C4);',
-      'snd("piano",4,E4);',
-      'snd("piano",4,G4);'
-    ].join("\n");
-  }
 
   refreshEditor();
   syncScroll();
@@ -1659,7 +1579,7 @@ input[type="color"] {
 
   const VALID_INSTRUMENTS = new Set([
     "piano", "grand_piano", "synth", "synth_lead", "synth_bass",
-    "bass", "drum", "kick", "hihat", "hi_hat", "snare",
+    "bass", "drum", "kick", "hihat", "hi_hat", "open_hihat", "snare",
     "sine", "square", "triangle", "saw", "sawtooth", "null"
   ]);
 
@@ -1707,7 +1627,8 @@ input[type="color"] {
     audioNodes: new Set(),
     timers: new Set(),
     plugins: new Map(),
-    errorLines: new Set()
+    errorLines: new Set(),
+    trackModalMode: null
   };
 
   function $(id) {
@@ -1721,14 +1642,17 @@ input[type="color"] {
       "ustButton", "pluginButton", "themeToggle",
       "trackList", "trackCount", "addTrackButton",
       "renameTrackButton", "deleteTrackButton", "lineNumbers",
-      "editorScroll", "highlightLayer", "highlightCode",
+      "editorScroll", "editorContent", "highlightLayer", "highlightCode",
       "codeEditor", "editorFileName", "editorStatusText",
       "editorStatusDot", "tempoValue", "keyValue", "cursorValue",
       "compileStatus", "consoleOutput", "clearConsoleButton",
       "errorPanel", "errorLine", "errorType", "errorMessage",
       "exportWavButton", "exportMidiButton", "exportUstButton",
       "exportSsButton", "pluginModal", "pluginFileInput",
-      "loadPluginButton", "pluginList", "pluginModalClose"
+      "loadPluginButton", "pluginList", "pluginModalClose",
+      "trackModal", "trackModalTitle", "trackModalMessage",
+      "trackNameLabel", "trackNameInput", "trackModalCancel",
+      "trackModalOk"
     ].forEach(id => {
       DOM[id] = $(id);
     });
@@ -2067,6 +1991,20 @@ input[type="color"] {
 
   function parseDuration(value, line) {
     const text = String(value).trim();
+    const ticksMatch = text.match(/^"#(\d+)"$/);
+
+    if (ticksMatch) {
+      const ticks = Number(ticksMatch[1]);
+      if (!Number.isSafeInteger(ticks) || ticks <= 0) {
+        throw new SWSError(
+          line,
+          "ValueError",
+          "tick length must be a positive safe integer"
+        );
+      }
+      return ticks / PPQ;
+    }
+
     const dotted = text.endsWith("+");
     const denominatorText = dotted ? text.slice(0, -1) : text;
 
@@ -2863,6 +2801,11 @@ input[type="color"] {
         return;
       }
 
+      if (/^sleepTicks\s*\(/.test(text)) {
+        this.compileSleepTicks(text, line);
+        return;
+      }
+
       if (/^snd\s*\(/.test(text)) {
         this.compileSnd(text, line);
         return;
@@ -3000,7 +2943,10 @@ input[type="color"] {
     compileKey(text, line) {
       const key = parseAssignment(text, "key", line);
 
-      if (!Object.prototype.hasOwnProperty.call(KEY_SCALES, key)) {
+      if (
+        key !== "null" &&
+        !Object.prototype.hasOwnProperty.call(KEY_SCALES, key)
+      ) {
         throw new SWSError(
           line,
           "ValueError",
@@ -3027,7 +2973,34 @@ input[type="color"] {
         );
       }
 
-      this.mainCursor += parseDuration(args[0], line);
+      const mainTrack = this.project.getTrack("main");
+      mainTrack.cursor += parseDuration(args[0], line);
+      this.mainCursor = mainTrack.cursor;
+    }
+
+    compileSleepTicks(text, line) {
+      const args = parseCallArguments(text, "sleepTicks", line);
+
+      if (args.length !== 1 || !/^\d+$/.test(args[0])) {
+        throw new SWSError(
+          line,
+          "SyntaxError",
+          "sleepTicks requires exactly one positive integer tick count"
+        );
+      }
+
+      const ticks = Number(args[0]);
+      if (!Number.isSafeInteger(ticks) || ticks <= 0) {
+        throw new SWSError(
+          line,
+          "ValueError",
+          "sleepTicks requires exactly one positive integer tick count"
+        );
+      }
+
+      const mainTrack = this.project.getTrack("main");
+      mainTrack.cursor += ticks / PPQ;
+      this.mainCursor = mainTrack.cursor;
     }
 
     compileOutput(text, line) {
@@ -3415,7 +3388,8 @@ input[type="color"] {
 
       if (
         text.startsWith("snd(") ||
-        text.startsWith("sleep(") ||
+        /^sleep\s*\(/.test(text) ||
+        /^sleepTicks\s*\(/.test(text) ||
         text.startsWith("tempoconst") ||
         text.startsWith("newtempo") ||
         text.startsWith("key") ||
@@ -3490,7 +3464,7 @@ input[type="color"] {
       let className = "syn-text";
 
       if ([
-        "snd", "sleep", "lp", "chips", "tempoconst",
+        "snd", "sleep", "sleepticks", "lp", "chips", "tempoconst",
         "newtempo", "key", "output", "plugin", "index"
       ].includes(lower)) {
         className = "syn-command";
@@ -3563,24 +3537,38 @@ input[type="color"] {
   function syncEditorScroll() {
     if (!DOM.editorScroll) return;
 
-    if (DOM.highlightLayer) {
-      DOM.highlightLayer.scrollTop = DOM.editorScroll.scrollTop;
-      DOM.highlightLayer.scrollLeft = DOM.editorScroll.scrollLeft;
-    }
-
-    if (DOM.codeEditor) {
-      DOM.codeEditor.scrollTop = DOM.editorScroll.scrollTop;
-      DOM.codeEditor.scrollLeft = DOM.editorScroll.scrollLeft;
-    }
-
     if (DOM.lineNumbers) {
       DOM.lineNumbers.scrollTop = DOM.editorScroll.scrollTop;
     }
   }
 
+  function updateEditorSize() {
+    if (
+      !DOM.codeEditor ||
+      !DOM.highlightCode ||
+      !DOM.highlightLayer ||
+      !DOM.editorScroll ||
+      !DOM.editorContent
+    ) {
+      return;
+    }
+
+    DOM.codeEditor.style.height = "auto";
+    const height = Math.max(
+      DOM.codeEditor.scrollHeight,
+      DOM.highlightCode.scrollHeight,
+      DOM.editorScroll.clientHeight
+    );
+
+    DOM.editorContent.style.height = `${height}px`;
+    DOM.highlightLayer.style.height = `${height}px`;
+    DOM.codeEditor.style.height = `${height}px`;
+  }
+
   function refreshEditor() {
     updateLineNumbers();
     updateHighlight();
+    updateEditorSize();
     syncEditorScroll();
   }
 
@@ -3707,6 +3695,10 @@ input[type="color"] {
   function renderTracks(project) {
     if (!DOM.trackList || !project) return;
 
+    if (!project.tracks.some(track => track.name === state.selectedTrack)) {
+      state.selectedTrack = "main";
+    }
+
     DOM.trackList.replaceChildren();
 
     for (const track of project.tracks) {
@@ -3754,8 +3746,18 @@ input[type="color"] {
       item.addEventListener("click", () => {
         state.selectedTrack = track.name;
         renderTracks(project);
-        showTrackSource(project, track.name);
       });
+    }
+
+    if (DOM.renameTrackButton) {
+      DOM.renameTrackButton.disabled =
+        state.selectedTrack === "main" ||
+        !project.tracks.some(track => track.name === state.selectedTrack);
+    }
+    if (DOM.deleteTrackButton) {
+      DOM.deleteTrackButton.disabled =
+        state.selectedTrack === "main" ||
+        !project.tracks.some(track => track.name === state.selectedTrack);
     }
 
     if (DOM.trackCount) {
@@ -3764,34 +3766,279 @@ input[type="color"] {
     }
   }
 
-  function showTrackSource(project, name) {
-    const track = project.tracks.find(item => item.name === name);
+  function replaceTrackReferences(source, oldName, newName) {
+    let result = "";
+    let code = "";
 
-    if (!track || !track.sourceStatements.length) return;
+    for (let index = 0; index < source.length; index++) {
+      const ch = source[index];
 
-    const globals = project.source
-      .split(/\r?\n/)
-      .filter(line => {
-        const text = line.trim();
+      if (ch === "<") {
+        const end = source.indexOf(">", index + 1);
+        if (end < 0) {
+          result += source.slice(index);
+          break;
+        }
 
-        return (
-          text.startsWith("tempoconst") ||
-          text.startsWith("newtempo") ||
-          text.startsWith("key") ||
-          text.startsWith("output.") ||
-          text.startsWith("plugin") ||
-          text.startsWith("index.class")
-        );
-      });
+        const comment = source.slice(index, end + 1);
+        result += comment;
+        code += " ".repeat(comment.length);
+        index = end;
+        continue;
+      }
 
-    DOM.codeEditor.value = [
-      ...globals,
-      ...track.sourceStatements
-        .sort((a, b) => a.line - b.line)
-        .map(item => item.source)
-    ].join("\n");
+      if (ch === '"') {
+        let end = index + 1;
+        while (end < source.length) {
+          if (source[end] === '"' && source[end - 1] !== "\\") {
+            end++;
+            break;
+          }
+          end++;
+        }
 
+        const literal = source.slice(index, end);
+        const isTrackReference =
+          /\bclass\s*=\s*$/.test(code) ||
+          /\bindex\.class\s*\(\s*$/.test(code);
+        const value = literal.slice(1, -1)
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, "\\");
+
+        if (isTrackReference && value === oldName) {
+          const replacement = `"${escapeString(newName)}"`;
+          result += replacement;
+          code += replacement;
+        } else {
+          result += literal;
+          code += literal;
+        }
+
+        index = end - 1;
+        continue;
+      }
+
+      result += ch;
+      code += ch;
+      if (ch === ";" || ch === "\n") code = "";
+    }
+
+    return result;
+  }
+
+  function applyTrackSourceEdit(source, selectedTrack, message) {
+    try {
+      new Compiler(source).compile();
+    } catch (error) {
+      reportError(error);
+      return false;
+    }
+
+    const previousSource = DOM.codeEditor.value;
+    const previousSelection = state.selectedTrack;
+    DOM.codeEditor.value = source;
+    state.selectedTrack = selectedTrack;
     refreshEditor();
+
+    if (!compileSource(source, true)) {
+      DOM.codeEditor.value = previousSource;
+      state.selectedTrack = previousSelection;
+      refreshEditor();
+      setStatus(state.dirty ? "Modified" : "Compiled", state.dirty);
+      return false;
+    }
+
+    log(message, "success");
+    return true;
+  }
+
+  function getEditableProject() {
+    try {
+      return new Compiler(DOM.codeEditor.value).compile();
+    } catch (error) {
+      reportError(error);
+      return null;
+    }
+  }
+
+  function openTrackModal(mode, name = "") {
+    if (!DOM.trackModal) return;
+
+    state.trackModalMode = mode;
+    DOM.trackModalTitle.textContent = {
+      add: "Add Track",
+      rename: "Rename Track",
+      delete: "Delete Track"
+    }[mode];
+
+    const deleting = mode === "delete";
+    DOM.trackModalMessage.textContent = deleting
+      ? `Delete "${name}"? Its notes will be moved to "main".`
+      : "";
+    DOM.trackModalMessage.hidden = !deleting;
+    DOM.trackNameLabel.hidden = deleting;
+    DOM.trackNameInput.hidden = deleting;
+    DOM.trackNameInput.value = name;
+    DOM.trackModalOk.textContent = deleting ? "Delete" : "OK";
+    DOM.trackModalOk.classList.toggle("danger", deleting);
+    DOM.trackModalOk.classList.toggle("primary", !deleting);
+    DOM.trackModal.classList.add("active");
+    DOM.trackModal.setAttribute("aria-hidden", "false");
+
+    if (deleting) {
+      DOM.trackModalOk.focus();
+    } else {
+      DOM.trackNameInput.focus();
+      DOM.trackNameInput.select();
+    }
+  }
+
+  function closeTrackModal() {
+    DOM.trackModal?.classList.remove("active");
+    DOM.trackModal?.setAttribute("aria-hidden", "true");
+    state.trackModalMode = null;
+  }
+
+  function validateTrackName(name, project, currentName = null) {
+    const trackName = name.trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(trackName)) {
+      reportError(new SWSError(
+        1,
+        "ValueError",
+        "track name must start with a letter or underscore and contain only letters, numbers, and underscores"
+      ));
+      return null;
+    }
+    if (
+      trackName !== currentName &&
+      project.tracks.some(track => track.name === trackName)
+    ) {
+      reportError(new SWSError(
+        1,
+        "ValueError",
+        `track '${trackName}' already exists`
+      ));
+      return null;
+    }
+    return trackName;
+  }
+
+  function addTrack(name) {
+    const project = getEditableProject();
+    if (!project) return false;
+
+    const trackName = validateTrackName(name, project);
+    if (!trackName) return false;
+
+    const source = DOM.codeEditor.value;
+    const newline = source.includes("\r\n") ? "\r\n" : "\n";
+    const separator = source && !/[\r\n]$/.test(source) ? newline : "";
+    const updatedSource =
+      `${source}${separator}index.class("${escapeString(trackName)}");`;
+
+    return applyTrackSourceEdit(
+      updatedSource,
+      trackName,
+      `Added track: ${trackName}`
+    );
+  }
+
+  function renameSelectedTrack(newName) {
+    const project = getEditableProject();
+    if (!project) return false;
+
+    const currentName = state.selectedTrack;
+    const track = project.tracks.find(item => item.name === currentName);
+    if (!track || currentName === "main") return false;
+
+    const validatedName = validateTrackName(
+      newName,
+      project,
+      currentName
+    );
+    if (!validatedName) return false;
+
+    const updatedSource = replaceTrackReferences(
+      DOM.codeEditor.value,
+      currentName,
+      validatedName
+    );
+    return applyTrackSourceEdit(
+      updatedSource,
+      validatedName,
+      `Renamed track: ${currentName} -> ${validatedName}`
+    );
+  }
+
+  function deleteSelectedTrack() {
+    const project = getEditableProject();
+    if (!project) return false;
+
+    const currentName = state.selectedTrack;
+    if (
+      currentName === "main" ||
+      !project.tracks.some(track => track.name === currentName)
+    ) {
+      return false;
+    }
+
+    const updatedSource = replaceTrackReferences(
+      DOM.codeEditor.value,
+      currentName,
+      "main"
+    );
+    return applyTrackSourceEdit(
+      updatedSource,
+      "main",
+      `Deleted track: ${currentName}; its notes were moved to main`
+    );
+  }
+
+  function beginAddTrack() {
+    const project = getEditableProject();
+    if (!project) return;
+
+    let suffix = project.tracks.length + 1;
+    let suggestedName = `track${suffix}`;
+    while (project.tracks.some(track => track.name === suggestedName)) {
+      suggestedName = `track${++suffix}`;
+    }
+    openTrackModal("add", suggestedName);
+  }
+
+  function beginRenameTrack() {
+    const project = getEditableProject();
+    if (!project) return;
+    const track = project.tracks.find(
+      item => item.name === state.selectedTrack
+    );
+    if (track && track.name !== "main") {
+      openTrackModal("rename", track.name);
+    }
+  }
+
+  function beginDeleteTrack() {
+    const project = getEditableProject();
+    if (!project) return;
+    const track = project.tracks.find(
+      item => item.name === state.selectedTrack
+    );
+    if (track && track.name !== "main") {
+      openTrackModal("delete", track.name);
+    }
+  }
+
+  function submitTrackModal() {
+    let succeeded = false;
+    if (state.trackModalMode === "add") {
+      succeeded = addTrack(DOM.trackNameInput.value);
+    } else if (state.trackModalMode === "rename") {
+      succeeded = renameSelectedTrack(DOM.trackNameInput.value);
+    } else if (state.trackModalMode === "delete") {
+      succeeded = deleteSelectedTrack();
+    }
+
+    if (succeeded) closeTrackModal();
   }
 
   function openFile(file) {
@@ -3974,24 +4221,14 @@ input[type="color"] {
     }
     finishNote();
 
-    const beatsToDuration = beats => {
-      if (beats <= 0) return "4";
-      const denominator = 4 / beats;
-      if (Math.abs(denominator - Math.round(denominator)) < 1e-9) {
-        return String(Math.round(denominator));
-      }
-      const dotted = denominator / 1.5;
-      if (Math.abs(dotted - Math.round(dotted)) < 1e-9) {
-        return `${Math.round(dotted)}+`;
-      }
-      return String(Math.round(denominator));
-    };
-
-    const result = [`tempoconst="${tempo.toFixed(2)}";`, ""];
+    const result = [
+      `tempoconst="${tempo.toFixed(2)}";`,
+      'key="null";',
+      ""
+    ];
     for (const note of notes) {
-      const duration = beatsToDuration(note.length / 480);
       if (note.lyric.toUpperCase() === "R") {
-        result.push(`sleep(${duration});`);
+        result.push(`sleepTicks(${note.length});`);
         continue;
       }
 
@@ -3999,7 +4236,7 @@ input[type="color"] {
         ? ` Lyric="${escapeString(note.lyric)}"`
         : "";
       result.push(
-        `snd("synth",${duration},${midiToPitch(note.noteNumber)}${lyric});`
+        `snd("synth","#${note.length}",${midiToPitch(note.noteNumber)}${lyric});`
       );
     }
     return result.join("\n");
@@ -4251,90 +4488,465 @@ input[type="color"] {
   // WAV and Web Audio
   // ============================================================
 
-  function synthWave(instrument, frequency, time) {
+  function softClip(value) {
+    return Math.tanh(value * 1.15);
+  }
+
+  function noiseWhite(seed, index) {
+    let value = (seed + Math.imul(index + 1, 0x6d2b79f5)) | 0;
+    value = Math.imul(value ^ value >>> 15, value | 1);
+    value ^= value + Math.imul(value ^ value >>> 7, value | 61);
+    return ((value ^ value >>> 14) >>> 0) / 2147483648 - 1;
+  }
+
+  function noisePink(seed, index) {
+    return (
+      noiseWhite(seed, index) * 0.45 +
+      noiseWhite(seed ^ 0x51ed270b, index >> 2) * 0.3 +
+      noiseWhite(seed ^ 0x2c1b3c6d, index >> 5) * 0.17 +
+      noiseWhite(seed ^ 0x297a2d39, index >> 8) * 0.08
+    );
+  }
+
+  function lowpassFilter(input, cutoff, sampleRate, state) {
+    const alpha = 1 - Math.exp(
+      -2 * Math.PI * Math.min(cutoff, sampleRate * 0.45) / sampleRate
+    );
+    state.low += alpha * (input - state.low);
+    return state.low;
+  }
+
+  function highpassFilter(input, cutoff, sampleRate, state) {
+    const alpha = Math.exp(
+      -2 * Math.PI * Math.min(cutoff, sampleRate * 0.45) / sampleRate
+    );
+    const output = alpha * (state.high + input - state.previousInput);
+    state.previousInput = input;
+    state.high = output;
+    return output;
+  }
+
+  function bandpassFilter(input, lowCutoff, highCutoff, sampleRate, state) {
+    const high = highpassFilter(
+      input,
+      lowCutoff,
+      sampleRate,
+      state.highpass
+    );
+    return lowpassFilter(
+      high,
+      highCutoff,
+      sampleRate,
+      state.lowpass
+    );
+  }
+
+  function oscSaw(phase) {
+    const cycles = phase / (2 * Math.PI);
+    return 2 * (cycles - Math.floor(cycles + 0.5));
+  }
+
+  function oscSquare(phase) {
+    return Math.sin(phase) >= 0 ? 1 : -1;
+  }
+
+  function oscTriangle(phase) {
+    return 2 / Math.PI * Math.asin(Math.sin(phase));
+  }
+
+  function generatePiano(frequency, time, params) {
+    const phase = 2 * Math.PI * frequency * time;
+    const brightness = 0.7 + params.velocity * 0.3;
+    const body =
+      Math.sin(phase) * Math.exp(-1.5 * time) +
+      Math.sin(phase * 2.01) * 0.48 * Math.exp(-2.4 * time) +
+      Math.sin(phase * 3.02) * 0.25 * Math.exp(-3.2 * time) +
+      Math.sin(phase * 4.05) * 0.13 * brightness * Math.exp(-4 * time) +
+      Math.sin(phase * 5.09) * 0.07 * brightness * Math.exp(-5 * time) +
+      Math.sin(phase * 6.14) * 0.035 * brightness * Math.exp(-6 * time);
+    const hammer = Math.exp(-70 * time) * (
+      noiseWhite(params.seed, params.sampleIndex) *
+        (0.08 + params.velocity * 0.1) +
+      Math.sin(phase * 2) * 0.15 +
+      Math.sin(phase * 5) * 0.06
+    );
+    return softClip((body + hammer) * (1 + params.velocity * 0.08));
+  }
+
+  function generateBass(frequency, time, params) {
+    const phase = 2 * Math.PI * frequency * time;
+    const subAmount = frequency < 110 ? 0.38 : 0.24;
+    const upperAmount = frequency > 180 ? 0.23 : 0.13;
+    const transient = Math.exp(-16 * time) *
+      Math.sin(phase * 2) * (0.04 + params.velocity * 0.05);
+    return softClip(
+      Math.sin(phase) * 0.58 +
+      Math.sin(phase * 0.5) * subAmount +
+      Math.sin(phase * 2) * upperAmount +
+      Math.sin(phase * 3) * 0.06 +
+      transient
+    );
+  }
+
+  function generateKick(frequency, time, params) {
+    const pitch = frequency +
+      Math.max(70, frequency * 7) * Math.exp(-35 * time);
+    const body = Math.sin(2 * Math.PI * pitch * time) *
+      Math.exp(-8.5 * time);
+    const sub = Math.sin(
+      2 * Math.PI * frequency * 0.5 * time
+    ) * Math.exp(-6 * time);
+    const click = highpassFilter(
+      noiseWhite(params.seed, params.sampleIndex),
+      1800,
+      params.sampleRate,
+      params.filterState.noiseHighpass
+    ) * Math.exp(-90 * time);
+    return softClip(body * 0.78 + sub * 0.2 + click * 0.12);
+  }
+
+  function generateSnare(frequency, time, params) {
+    const bodyFrequency = Math.max(130, Math.min(240, frequency));
+    const body =
+      Math.sin(2 * Math.PI * bodyFrequency * time) +
+      0.55 * Math.sin(2 * Math.PI * bodyFrequency * 1.34 * time) +
+      0.25 * Math.sin(2 * Math.PI * bodyFrequency * 1.83 * time);
+    const noise = bandpassFilter(
+      noisePink(params.seed, params.sampleIndex),
+      700,
+      9000,
+      params.sampleRate,
+      params.filterState
+    );
+    const transient = Math.exp(-110 * time) *
+      noiseWhite(params.seed ^ 0x4f1bbcdc, params.sampleIndex);
+    return softClip(
+      body * Math.exp(-14 * time) * 0.25 +
+      noise * Math.exp(-22 * time) * (0.55 + params.velocity * 0.12) +
+      transient * 0.35
+    );
+  }
+
+  function generateHiHat(time, params, open = false) {
+    const metallic =
+      Math.sin(2 * Math.PI * 6800 * time) +
+      Math.sin(2 * Math.PI * 8200 * time) +
+      Math.sin(2 * Math.PI * 9100 * time) +
+      Math.sin(2 * Math.PI * 10100 * time) +
+      Math.sin(2 * Math.PI * 11300 * time) +
+      Math.sin(2 * Math.PI * 12700 * time) +
+      Math.sin(2 * Math.PI * 13700 * time);
+    const highNoise = highpassFilter(
+      noiseWhite(params.seed, params.sampleIndex),
+      6500,
+      params.sampleRate,
+      params.filterState.noiseHighpass
+    );
+    const decay = open ? 10 : 38;
+    return softClip(
+      (highNoise * 0.72 + metallic * 0.045) *
+      Math.exp(-decay * time)
+    );
+  }
+
+  function generateSynthLead(frequency, time, params) {
+    const phase = 2 * Math.PI * frequency * time;
+    const brightness = Math.exp(-4 * time);
+    const detuned =
+      Math.sin(phase * 0.997) * 0.34 +
+      Math.sin(phase) * 0.34 +
+      Math.sin(phase * 1.003) * 0.34;
+    const saw = oscSaw(phase) * (0.22 + brightness * 0.16);
+    const square = oscSquare(phase) * 0.08;
+    const upper = Math.sin(phase * 2) *
+      (0.08 + brightness * 0.12) *
+      (0.7 + params.velocity * 0.3);
+    const filtered = lowpassFilter(
+      detuned + saw + square + upper,
+      900 + brightness * 6500,
+      params.sampleRate,
+      params.filterState.lowpass
+    );
+    return softClip(filtered);
+  }
+
+  function generateDrum(frequency, time, params) {
+    const pitch = frequency * (1 + 4 * Math.exp(-25 * time));
+    const body = Math.sin(2 * Math.PI * pitch * time) *
+      Math.exp(-8 * time);
+    const click = highpassFilter(
+      noiseWhite(params.seed, params.sampleIndex),
+      2200,
+      params.sampleRate,
+      params.filterState.noiseHighpass
+    ) * Math.exp(-65 * time);
+    return softClip(body * 0.9 + click * 0.08);
+  }
+
+  function synthWave(instrument, frequency, time, params = {}) {
     const phase = 2 * Math.PI * frequency * time;
     const name = String(instrument).toLowerCase();
+    const sampleRate = params.sampleRate || SAMPLE_RATE;
+    const sampleIndex = params.sampleIndex || 0;
+    const velocity = Math.max(
+      0,
+      Math.min(2, params.velocity ?? 1)
+    );
+    params.sampleRate = sampleRate;
+    params.sampleIndex = sampleIndex;
+    params.velocity = velocity;
+    params.seed = params.seed || 1;
 
     if (name === "square") {
-      return Math.sin(phase) >= 0 ? 1 : -1;
+      return softClip(
+        oscSquare(phase) * (0.75 + velocity * 0.05) +
+        Math.sin(phase * 3) * 0.12 * velocity +
+        Math.sin(phase * 5) * 0.06 * velocity
+      );
     }
 
     if (name === "triangle") {
-      return 2 / Math.PI * Math.asin(Math.sin(phase));
+      return (
+        oscTriangle(phase) * 0.92 +
+        Math.sin(phase * 2) * 0.04 +
+        Math.sin(phase * 3) * 0.04
+      );
     }
 
     if (name === "saw" || name === "sawtooth") {
-      return 2 * ((frequency * time) % 1) - 1;
+      return softClip(
+        oscSaw(phase) * (0.7 + velocity * 0.05) +
+        Math.sin(phase * 2) * 0.18 * velocity +
+        Math.sin(phase * 3) * 0.08 * velocity +
+        Math.sin(phase * 4) * 0.04 * velocity
+      );
     }
 
     if (name === "synth" || name === "synth_lead") {
-      return Math.sin(phase) + 0.35 * Math.sin(phase * 2);
+      return generateSynthLead(frequency, time, params);
     }
 
     if (name === "bass" || name === "synth_bass") {
-      return Math.sin(phase) + 0.35 * Math.sin(phase / 2);
+      return generateBass(frequency, time, params);
     }
 
     if (name === "piano" || name === "grand_piano") {
-      return (
-        Math.sin(phase) +
-        0.45 * Math.sin(phase * 2) +
-        0.25 * Math.sin(phase * 3) +
-        0.12 * Math.sin(phase * 4)
-      ) * Math.exp(-1.8 * time);
+      return generatePiano(frequency, time, params);
     }
 
     if (name === "kick") {
-      const shifted = frequency *
-        (1 + 4 * Math.exp(-25 * time));
-
-      return Math.sin(
-        2 * Math.PI * shifted * time
-      ) * Math.exp(-10 * time);
+      return generateKick(frequency, time, params);
     }
 
     if (name === "snare") {
-      return (
-        Math.sin(2 * Math.PI * 200 * time) +
-        Math.sin(2 * Math.PI * 300 * time)
-      ) * Math.exp(-8 * time);
+      return generateSnare(frequency, time, params);
     }
 
-    if (name === "hihat" || name === "hi_hat") {
-      return (
-        Math.sin(2 * Math.PI * 8000 * time) +
-        Math.sin(2 * Math.PI * 12000 * time)
-      ) * Math.exp(-20 * time);
+    if (
+      name === "hihat" ||
+      name === "hi_hat" ||
+      name === "open_hihat"
+    ) {
+      return generateHiHat(
+        time,
+        params,
+        name === "open_hihat"
+      );
     }
 
     if (name === "drum") {
-      const shifted = frequency *
-        (1 + 3 * Math.exp(-20 * time));
-
-      return Math.sin(
-        2 * Math.PI * shifted * time
-      ) * Math.exp(-8 * time);
+      return generateDrum(frequency, time, params);
     }
 
     return Math.sin(phase);
   }
 
-  function envelope(time, duration) {
-    if (duration <= 0) return 0;
-
-    const attack = Math.min(0.02, duration * 0.15);
-    const release = Math.min(0.1, duration * 0.25);
-
-    if (time < attack) return time / attack;
-    if (time > duration - release) {
-      return Math.max(0, (duration - time) / release);
+  function envelope(time, duration, instrument = "") {
+    if (duration <= 0 || time < 0 || time >= duration) {
+      return 0;
     }
 
-    return 1;
+    const name = String(instrument).toLowerCase();
+    const isPercussion = [
+      "kick", "snare", "hihat", "hi_hat", "open_hihat", "drum"
+    ].includes(name);
+    const attack = Math.min(
+      isPercussion ? 0.002 : 0.015,
+      duration * (isPercussion ? 0.02 : 0.08)
+    );
+    const decay = Math.min(
+      isPercussion ? 0.025 : 0.08,
+      duration * 0.2
+    );
+    const release = Math.min(
+      isPercussion ? 0.03 : 0.12,
+      duration * 0.25
+    );
+    const sustain = isPercussion ? 0.82 : 0.9;
+
+    if (time < attack) {
+      const progress = time / attack;
+      return progress * progress * (3 - 2 * progress);
+    }
+    if (time < attack + decay) {
+      const progress = (time - attack) / decay;
+      return 1 - progress * (1 - sustain);
+    }
+    if (time > duration - release) {
+      const progress = (duration - time) / release;
+      return sustain * progress * progress * (3 - 2 * progress);
+    }
+
+    return sustain;
   }
 
   function noteFrequency(note) {
     return 440 * Math.pow(2, (note.midi - 69) / 12);
+  }
+
+  function createFilterState() {
+    return {
+      highpass: { high: 0, previousInput: 0 },
+      lowpass: { low: 0 },
+      noiseHighpass: { high: 0, previousInput: 0 },
+      noiseLowpass: { low: 0 }
+    };
+  }
+
+  function panFor(instrument, note) {
+    const name = String(instrument).toLowerCase();
+    if (name === "piano" || name === "grand_piano") {
+      return Math.max(-0.28, Math.min(0.28, (note.midi - 60) / 48));
+    }
+    if (name === "hihat" || name === "hi_hat" || name === "open_hihat") {
+      return 0.16;
+    }
+    if (name === "snare") return -0.04;
+    return 0;
+  }
+
+  // Share one seeded stereo render path between live playback and WAV export.
+  function renderAudio(project, sampleRate = SAMPLE_RATE) {
+    const totalBeat = Math.max(
+      ...project.events.map(event => event.end)
+    );
+    const totalSeconds = project.tempoMap.beatToSeconds(totalBeat);
+    const dryLength = Math.max(1, Math.ceil(totalSeconds * sampleRate));
+    const tailLength = Math.ceil(0.12 * sampleRate);
+    const left = new Float32Array(dryLength + tailLength);
+    const right = new Float32Array(dryLength + tailLength);
+    const reverbLeft = new Float32Array(dryLength);
+    const reverbRight = new Float32Array(dryLength);
+
+    for (const event of project.events) {
+      const start = project.tempoMap.beatToSeconds(event.start);
+      const end = project.tempoMap.beatToSeconds(event.end);
+      const duration = end - start;
+      const offset = Math.floor(start * sampleRate);
+      const count = Math.min(
+        left.length - offset,
+        Math.ceil(duration * sampleRate)
+      );
+      const baseVolume = Math.max(
+        0,
+        Math.min(2, event.volume / 100)
+      );
+      const isDryInstrument = [
+        "bass", "synth_bass", "kick"
+      ].includes(event.instrument);
+
+      for (const note of event.notes) {
+        if (note.midi === null) continue;
+
+        const pan = panFor(event.instrument, note);
+        const leftGain = Math.sqrt((1 - pan) * 0.5);
+        const rightGain = Math.sqrt((1 + pan) * 0.5);
+        const voiceParams = {
+          sampleRate,
+          sampleIndex: 0,
+          velocity: baseVolume,
+          seed: (
+            Math.imul(event.line + 1, 0x45d9f3b) ^
+            Math.imul(note.midi + 1, 0x119de1f3) ^
+            Math.floor(event.start * PPQ)
+          ) | 0,
+          filterState: createFilterState()
+        };
+        const frequency = noteFrequency(note);
+
+        for (let index = 0; index < count; index++) {
+          const outputIndex = offset + index;
+          const time = index / sampleRate;
+          voiceParams.sampleIndex = index;
+          const sample = synthWave(
+            event.instrument,
+            frequency,
+            time,
+            voiceParams
+          ) * envelope(time, duration, event.instrument);
+          const value = sample * 0.18 * baseVolume;
+
+          left[outputIndex] += value * leftGain;
+          right[outputIndex] += value * rightGain;
+
+          if (!isDryInstrument && outputIndex < dryLength) {
+            reverbLeft[outputIndex] += value * leftGain * 0.12;
+            reverbRight[outputIndex] += value * rightGain * 0.12;
+          }
+        }
+      }
+    }
+
+    const taps = [
+      [0.031, 0.22],
+      [0.047, 0.16],
+      [0.071, 0.12],
+      [0.113, 0.08]
+    ];
+    for (let index = 0; index < dryLength; index++) {
+      for (const [delay, amount] of taps) {
+        const delayedIndex = index + Math.round(delay * sampleRate);
+        if (delayedIndex >= left.length) continue;
+        left[delayedIndex] += reverbRight[index] * amount;
+        right[delayedIndex] += reverbLeft[index] * amount;
+      }
+    }
+
+    let peak = 0;
+    let detector = 0;
+    const attackCoefficient = Math.exp(-1 / (0.005 * sampleRate));
+    const releaseCoefficient = Math.exp(-1 / (0.08 * sampleRate));
+    for (let index = 0; index < left.length; index++) {
+      const inputPeak = Math.max(
+        Math.abs(left[index]),
+        Math.abs(right[index])
+      );
+      const coefficient = inputPeak > detector
+        ? attackCoefficient
+        : releaseCoefficient;
+      detector = coefficient * detector +
+        (1 - coefficient) * inputPeak;
+      const compressionGain = detector > 0.65
+        ? (0.65 + (detector - 0.65) / 3) / detector
+        : 1;
+      left[index] = softClip(left[index] * compressionGain * 1.08);
+      right[index] = softClip(right[index] * compressionGain * 1.08);
+      peak = Math.max(
+        peak,
+        Math.abs(left[index]),
+        Math.abs(right[index])
+      );
+    }
+
+    const limiter = peak > 0.891 ? 0.891 / peak : 1;
+    if (limiter < 1) {
+      for (let index = 0; index < left.length; index++) {
+        left[index] *= limiter;
+        right[index] *= limiter;
+      }
+    }
+
+    return { left, right };
   }
 
   function exportWav(
@@ -4355,59 +4967,13 @@ input[type="color"] {
     if (totalBeat <= 0) {
       throw new SWSError(1, "ValueError", "total duration is zero");
     }
-    const totalSeconds = project.tempoMap.beatToSeconds(totalBeat);
-    const sampleCount = Math.max(
-      1,
-      Math.ceil(totalSeconds * SAMPLE_RATE)
-    );
-    const samples = new Float32Array(sampleCount);
-
-    for (const event of project.events) {
-      const start = project.tempoMap.beatToSeconds(event.start);
-      const end = project.tempoMap.beatToSeconds(event.end);
-      const duration = end - start;
-      const offset = Math.floor(start * SAMPLE_RATE);
-      const count = Math.floor(duration * SAMPLE_RATE);
-      const volume = event.volume / 100;
-
-      for (const note of event.notes) {
-        if (note.midi === null) continue;
-
-        const frequency = noteFrequency(note);
-
-        for (let i = 0; i < count; i++) {
-          const index = offset + i;
-          if (index >= samples.length) break;
-
-          const time = i / SAMPLE_RATE;
-
-          samples[index] +=
-            synthWave(event.instrument, frequency, time) *
-            envelope(time, duration) *
-            0.18 *
-            volume;
-        }
-      }
-    }
-
-    let peak = 0;
-    for (const sample of samples) {
-      peak = Math.max(peak, Math.abs(sample));
-    }
-
-    const scale = peak > 0.95 ? 0.95 / peak : 1;
-    const pcm = new Int16Array(samples.length);
-
-    for (let i = 0; i < samples.length; i++) {
-      const value = Math.max(
-        -1,
-        Math.min(1, samples[i] * scale)
-      );
-      pcm[i] = Math.round(value * 32767);
-    }
+    const stereoSamples = renderAudio(project, SAMPLE_RATE);
 
     downloadBlob(
-      makeWavBlob(pcm, SAMPLE_RATE),
+      makeWavBlob(
+        [stereoSamples.left, stereoSamples.right],
+        SAMPLE_RATE
+      ),
       outputFilename(request?.filename || "song", "wav")
     );
 
@@ -4418,7 +4984,19 @@ input[type="color"] {
   }
 
   function makeWavBlob(samples, sampleRate) {
-    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const channels = Array.isArray(samples) ? samples : [samples];
+    const channelCount = channels.length;
+    if (
+      !channelCount ||
+      channels.some(channel => channel.length !== channels[0].length)
+    ) {
+      throw new TypeError("WAV channels must have equal sample lengths");
+    }
+
+    const frameCount = channels[0].length;
+    const blockAlign = channelCount * 2;
+    const dataSize = frameCount * blockAlign;
+    const buffer = new ArrayBuffer(44 + dataSize);
     const view = new DataView(buffer);
 
     function writeText(offset, text) {
@@ -4428,33 +5006,36 @@ input[type="color"] {
     }
 
     writeText(0, "RIFF");
-    view.setUint32(4, 36 + samples.length * 2, true);
+    view.setUint32(4, 36 + dataSize, true);
     writeText(8, "WAVE");
     writeText(12, "fmt ");
     view.setUint32(16, 16, true);
     view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
+    view.setUint16(22, channelCount, true);
     view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
     view.setUint16(34, 16, true);
     writeText(36, "data");
-    view.setUint32(40, samples.length * 2, true);
+    view.setUint32(40, dataSize, true);
 
-    for (let i = 0; i < samples.length; i++) {
-      view.setInt16(44 + i * 2, samples[i], true);
+    let offset = 44;
+    for (let frame = 0; frame < frameCount; frame++) {
+      for (const channel of channels) {
+        const sample = channel instanceof Int16Array
+          ? channel[frame] / 32768
+          : channel[frame];
+        const value = Math.max(-1, Math.min(1, sample));
+        view.setInt16(
+          offset,
+          Math.round(value * (value < 0 ? 32768 : 32767)),
+          true
+        );
+        offset += 2;
+      }
     }
 
     return new Blob([buffer], { type: "audio/wav" });
-  }
-
-  function instrumentWaveType(instrument) {
-    if (instrument === "square") return "square";
-    if (instrument === "triangle") return "triangle";
-    if (instrument === "saw" || instrument === "sawtooth") {
-      return "sawtooth";
-    }
-    return "sine";
   }
 
   async function playProject(project = getCurrentProject()) {
@@ -4486,56 +5067,30 @@ input[type="color"] {
     log("Playing...", "success");
 
     const base = state.audioContext.currentTime + 0.05;
+    const audio = renderAudio(project, state.audioContext.sampleRate);
+    const audioBuffer = state.audioContext.createBuffer(
+      2,
+      audio.left.length,
+      state.audioContext.sampleRate
+    );
+    audioBuffer.copyToChannel(audio.left, 0);
+    audioBuffer.copyToChannel(audio.right, 1);
+    const source = state.audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(state.audioContext.destination);
+    source.start(base);
+    state.audioNodes.add(source);
+    source.addEventListener("ended", () => {
+      state.audioNodes.delete(source);
+    });
 
     for (const event of project.events) {
       const start = project.tempoMap.beatToSeconds(event.start);
-      const end = project.tempoMap.beatToSeconds(event.end);
-      const duration = Math.max(0.001, end - start);
       const timer = setTimeout(() => {
         updatePlaybackTrack(event.className, event.line);
       }, start * 1000);
 
       state.timers.add(timer);
-
-      for (const note of event.notes) {
-        if (note.midi === null) continue;
-
-        const oscillator = state.audioContext.createOscillator();
-        const gain = state.audioContext.createGain();
-        const volume = Math.max(
-          0,
-          Math.min(2, event.volume / 100)
-        );
-
-        oscillator.type = instrumentWaveType(event.instrument);
-        oscillator.frequency.value = noteFrequency(note);
-
-        const absoluteStart = base + start;
-        const absoluteEnd = base + end;
-
-        gain.gain.setValueAtTime(
-          0.001,
-          absoluteStart
-        );
-        gain.gain.linearRampToValueAtTime(
-          0.16 * volume,
-          absoluteStart + Math.min(0.02, duration * 0.15)
-        );
-        gain.gain.linearRampToValueAtTime(
-          0,
-          absoluteEnd
-        );
-
-        oscillator.connect(gain);
-        gain.connect(state.audioContext.destination);
-        oscillator.start(absoluteStart);
-        oscillator.stop(absoluteEnd + 0.02);
-
-        state.audioNodes.add(oscillator);
-        oscillator.addEventListener("ended", () => {
-          state.audioNodes.delete(oscillator);
-        });
-      }
     }
 
     const totalBeat = project.events.length
@@ -4544,7 +5099,7 @@ input[type="color"] {
 
     const finish = setTimeout(() => {
       stopPlayback();
-    }, project.tempoMap.beatToSeconds(totalBeat) * 1000 + 300);
+    }, audio.left.length / state.audioContext.sampleRate * 1000 + 300);
 
     state.timers.add(finish);
   }
@@ -4705,6 +5260,30 @@ input[type="color"] {
   }
 
   function bindToolbarEvents() {
+    DOM.addTrackButton?.addEventListener("click", beginAddTrack);
+    DOM.renameTrackButton?.addEventListener(
+      "click",
+      beginRenameTrack
+    );
+    DOM.deleteTrackButton?.addEventListener(
+      "click",
+      beginDeleteTrack
+    );
+    DOM.trackModalCancel?.addEventListener("click", closeTrackModal);
+    DOM.trackModalOk?.addEventListener("click", submitTrackModal);
+    DOM.trackNameInput?.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitTrackModal();
+      }
+    });
+    DOM.trackModal?.addEventListener("click", event => {
+      if (event.target === DOM.trackModal) closeTrackModal();
+    });
+    DOM.trackModal?.addEventListener("keydown", event => {
+      if (event.key === "Escape") closeTrackModal();
+    });
+
     DOM.openButton?.addEventListener("click", () => {
       DOM.fileInput?.click();
     });
