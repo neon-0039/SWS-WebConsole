@@ -1355,8 +1355,7 @@ input[type="color"] {
     "newtempo",
     "key",
     "output",
-    "plugin",
-    "index"
+    "plugin"
   ];
 
   const keywordNames = [
@@ -1620,6 +1619,7 @@ input[type="color"] {
     fileName: "untitled.ss",
     dirty: false,
     selectedTrack: "default",
+    pendingTrackNames: new Set(),
     playing: false,
     audioContext: null,
     audioNodes: new Set(),
@@ -1754,6 +1754,13 @@ input[type="color"] {
       this.sourceClassName = name;
       this.color = colorForTrack(name);
       this.cursor = 0;
+      this.code = "";
+      this.editorState = {
+        selectionStart: 0,
+        selectionEnd: 0,
+        scrollTop: 0,
+        scrollLeft: 0
+      };
       this.events = [];
       this.sourceStatements = [];
       this.hasImplicitSource = false;
@@ -1840,6 +1847,7 @@ input[type="color"] {
       this.sourceLines = [];
       this.sourceMetadata = {};
       this.trackDeclarations = [];
+      this.sourceSegments = [];
     }
 
     ensureTrack(name) {
@@ -1889,6 +1897,16 @@ input[type="color"] {
         event.className = newName;
         event.sourcePosition.className = newName;
       }
+      this.sourceSegments.forEach(segment => {
+        if (segment.type === "track" && segment.trackName === oldName) {
+          segment.trackName = newName;
+        }
+        if (segment.type === "split") {
+          segment.parts.forEach(part => {
+            if (part.trackName === oldName) part.trackName = newName;
+          });
+        }
+      });
       this.trackDeclarations = this.trackDeclarations.map(declaration => {
         return declaration.name === oldName
           ? { ...declaration, name: newName }
@@ -1910,6 +1928,20 @@ input[type="color"] {
       this.events = this.events.filter(event => !removedEvents.has(event));
       this.trackDeclarations = this.trackDeclarations.filter(
         declaration => declaration.name !== name
+      );
+      this.sourceSegments = this.sourceSegments.filter(
+        segment => {
+          if (segment.type === "track") {
+            return segment.trackName !== name;
+          }
+          if (segment.type === "split") {
+            segment.parts = segment.parts.filter(
+              part => part.trackName !== name
+            );
+            return segment.parts.length > 0;
+          }
+          return true;
+        }
       );
       this.tracks.forEach((item, index) => {
         item.order = index;
@@ -2866,8 +2898,24 @@ input[type="color"] {
       const statements = scanStructure(this.source);
 
       for (const statement of statements) {
+        const eventStart = this.project.events.length;
+        const sourceStatementCounts = new Map(
+          this.project.tracks.map(track => [
+            track.name,
+            track.sourceStatements.length
+          ])
+        );
         this.compileStatement(statement);
+        this.addSourceSegments(
+          statement,
+          this.project.events.slice(eventStart),
+          sourceStatementCounts
+        );
       }
+      if (!this.project.tracks.length) {
+        this.project.ensureTrack("default");
+      }
+      this.finishTrackCode();
 
       this.validateSlurs();
 
@@ -2885,6 +2933,118 @@ input[type="color"] {
       }
 
       return this.project;
+    }
+
+    addSourceSegments(statement, events, previousCounts) {
+      const start = statement.start;
+      const end = statement.end;
+      if (!Number.isInteger(start) || !Number.isInteger(end) || end < start) {
+        return;
+      }
+
+      const text = this.source.slice(start, end);
+      const newSourceStatements = this.project.tracks.flatMap(track => {
+        const previous = previousCounts.get(track.name) || 0;
+        return track.sourceStatements
+          .slice(previous)
+          .map(item => ({ ...item, trackName: track.name }));
+      });
+      const owners = new Set([
+        ...events.map(event => event.className),
+        ...newSourceStatements.map(item => item.trackName)
+      ]);
+      const statementText = statement.type === "statement"
+        ? statement.text.trim()
+        : statement.header.trim();
+      const isTrackStatement =
+        /^snd\s*\(/i.test(statementText) ||
+        /^sleep(?:Ticks)?\s*\(/i.test(statementText) ||
+        /^chips\s*\(/i.test(statementText) ||
+        /^lp\s*\(/i.test(statementText);
+
+      if (isTrackStatement && owners.size === 1) {
+        this.project.sourceSegments.push({
+          type: "track",
+          trackName: owners.values().next().value,
+          start,
+          end,
+          code: text
+        });
+        return;
+      }
+
+      if (
+        /^snd\s*\(/i.test(statementText) &&
+        owners.size > 1 &&
+        splitCnt(statementText).length === events.length
+      ) {
+        this.project.sourceSegments.push({
+          type: "split",
+          start,
+          end,
+          parts: events.map(event => ({
+            trackName: event.className,
+            code: `${event.source};`
+          }))
+        });
+        return;
+      }
+
+      this.project.sourceSegments.push({
+        type: "shared",
+        start,
+        end,
+        code: text
+      });
+    }
+
+    finishTrackCode() {
+      const ordered = this.project.sourceSegments
+        .slice()
+        .sort((a, b) => a.start - b.start || a.end - b.end);
+      const segments = [];
+      let cursor = 0;
+
+      for (const segment of ordered) {
+        if (segment.start < cursor) continue;
+        if (segment.start > cursor) {
+          segments.push({
+            type: "shared",
+            start: cursor,
+            end: segment.start,
+            code: this.source.slice(cursor, segment.start)
+          });
+        }
+        segments.push(segment);
+        cursor = segment.end;
+      }
+      if (cursor < this.source.length) {
+        segments.push({
+          type: "shared",
+          start: cursor,
+          end: this.source.length,
+          code: this.source.slice(cursor)
+        });
+      }
+      this.project.sourceSegments = segments;
+
+      for (const track of this.project.tracks) {
+        track.code = segments
+            .flatMap(segment => {
+              if (segment.type === "track" &&
+                  segment.trackName === track.name) {
+                return [segment.code];
+              }
+              if (segment.type === "split") {
+                return segment.parts
+                  .filter(part => part.trackName === track.name)
+                  .map(part => part.code);
+              }
+              return [];
+            })
+            .join("\n")
+            .trim();
+      }
     }
 
     findSourceRange(text, line, from = null) {
@@ -3013,11 +3173,6 @@ input[type="color"] {
 
       if (/^plugin\s*\(/.test(text)) {
         this.compilePlugin(text, line);
-        return;
-      }
-
-      if (/^index\.class\s*\(/.test(text)) {
-        this.compileIndexClass(text, line);
         return;
       }
 
@@ -3283,34 +3438,6 @@ input[type="color"] {
       }
 
       this.project.plugins.push({ name, line });
-    }
-
-    compileIndexClass(text, line) {
-      const args = parseCallArguments(
-        text,
-        "index.class",
-        line
-      );
-
-      if (args.length !== 1) {
-        throw new SWSError(
-          line,
-          "SyntaxError",
-          "index.class requires exactly one class name"
-        );
-      }
-
-      const name = parseQuoted(args[0], line, "class name");
-      const track = this.project.ensureTrack(name);
-      const range = this.findSourceRange(text, line);
-      this.project.trackDeclarations.push({
-        name,
-        line,
-        source: text,
-        start: range.start,
-        end: range.end
-      });
-      this.currentUstClass = name;
     }
 
     compileChipsCall(text, line) {
@@ -3720,8 +3847,7 @@ input[type="color"] {
         text.startsWith("key") ||
         text.startsWith("output.") ||
         text.startsWith("plugin(") ||
-        text.startsWith("chips(") ||
-        text.startsWith("index.class")
+        text.startsWith("chips(")
       ) {
         errors.add(i + 1);
       }
@@ -3790,7 +3916,7 @@ input[type="color"] {
 
       if ([
         "snd", "sleep", "sleepticks", "lp", "chips", "tempoconst",
-        "newtempo", "key", "output", "plugin", "index"
+        "newtempo", "key", "output", "plugin"
       ].includes(lower)) {
         className = "syn-command";
       } else if ([
@@ -3901,6 +4027,80 @@ input[type="color"] {
   // Compile, track UI and files
   // ============================================================
 
+  function saveCurrentTrackEditorState() {
+    const track = state.project?.tracks.find(
+      item => item.name === state.selectedTrack
+    );
+    if (!track || !DOM.codeEditor) return;
+
+    track.code = DOM.codeEditor.value;
+    track.editorState = {
+      selectionStart: DOM.codeEditor.selectionStart,
+      selectionEnd: DOM.codeEditor.selectionEnd,
+      scrollTop: DOM.editorScroll?.scrollTop || 0,
+      scrollLeft: DOM.editorScroll?.scrollLeft || 0
+    };
+  }
+
+  function composeProjectSource(project = state.project) {
+    if (!project) return DOM.codeEditor?.value || state.source;
+    if (!project.sourceSegments.length) {
+      return project.tracks.map(track => track.code)
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    const insertedTracks = new Set();
+    const output = [];
+    const appendTrack = name => {
+      if (insertedTracks.has(name)) return;
+      insertedTracks.add(name);
+      const track = project.tracks.find(item => item.name === name);
+      if (track?.code) output.push(track.code);
+    };
+
+    for (const segment of project.sourceSegments) {
+      if (segment.type === "shared") {
+        output.push(segment.code);
+      } else if (segment.type === "track") {
+        appendTrack(segment.trackName);
+      } else if (segment.type === "split") {
+        for (const part of segment.parts) appendTrack(part.trackName);
+      }
+    }
+
+    for (const track of project.tracks) appendTrack(track.name);
+    return output.join("");
+  }
+
+  function loadTrackIntoEditor(trackName, focus = false) {
+    const track = state.project?.tracks.find(
+      item => item.name === trackName
+    );
+    if (!DOM.codeEditor) return false;
+    if (!track) {
+      DOM.codeEditor.value = "";
+      refreshEditor();
+      return false;
+    }
+
+    DOM.codeEditor.value = track.code;
+    refreshEditor();
+    const editorState = track.editorState;
+    DOM.codeEditor.setSelectionRange(
+      Math.min(editorState.selectionStart, track.code.length),
+      Math.min(editorState.selectionEnd, track.code.length)
+    );
+    if (DOM.editorScroll) {
+      DOM.editorScroll.scrollTop = editorState.scrollTop;
+      DOM.editorScroll.scrollLeft = editorState.scrollLeft;
+    }
+    syncEditorScroll();
+    if (focus) DOM.codeEditor.focus();
+    updateProjectInfo(state.project);
+    return true;
+  }
+
   function compileSource(source, commit = true) {
     clearError();
 
@@ -3909,6 +4109,11 @@ input[type="color"] {
       const project = compiler.compile();
 
       if (commit) {
+        for (const trackName of state.pendingTrackNames) {
+          if (!project.tracks.some(track => track.name === trackName)) {
+            project.ensureTrack(trackName);
+          }
+        }
         state.lastSuccessfulProject = project;
         state.project = project;
         state.source = source;
@@ -3931,12 +4136,29 @@ input[type="color"] {
   function compileCurrent(processOutputs = true) {
     if (!DOM.codeEditor) return null;
 
+    saveCurrentTrackEditorState();
+    const editorStates = new Map(
+      (state.project?.tracks || []).map(track => [
+        track.name,
+        { ...track.editorState }
+      ])
+    );
+    const source = state.project
+      ? composeProjectSource(state.project)
+      : DOM.codeEditor.value;
     const project = compileSource(
-      DOM.codeEditor.value,
+      source,
       true
     );
 
     if (!project) return null;
+
+    // Compilation recreates Track objects; preserve their editor positions.
+    for (const track of project.tracks) {
+      const editorState = editorStates.get(track.name);
+      if (editorState) track.editorState = editorState;
+    }
+    loadTrackIntoEditor(state.selectedTrack);
 
     if (DOM.compileStatus) {
       DOM.compileStatus.textContent = "Compile success";
@@ -4071,9 +4293,10 @@ input[type="color"] {
       DOM.trackList.appendChild(item);
 
       const selectTrack = () => {
+        saveCurrentTrackEditorState();
         state.selectedTrack = track.name;
         renderTracks(project);
-        focusTrackSource(project, track.name);
+        loadTrackIntoEditor(track.name, true);
       };
 
       item.addEventListener("click", selectTrack);
@@ -4109,62 +4332,14 @@ input[type="color"] {
     renderConsole();
   }
 
-  function focusTrackSource(project, trackName) {
-    if (!DOM.codeEditor) return;
-
-    const track = project.tracks.find(item => item.name === trackName);
-    const statement = track?.sourceStatements
-      .slice()
-      .sort((a, b) => a.line - b.line)[0];
-
-    if (!statement) {
-      DOM.codeEditor.focus();
-      DOM.codeEditor.setSelectionRange(
-        DOM.codeEditor.value.length,
-        DOM.codeEditor.value.length
-      );
-      log(`Track "${trackName}" has no notes yet. Use + Note to add one.`, "info", trackName);
-      return;
-    }
-
-    const source = DOM.codeEditor.value;
-    const sourceStart = statement.source
-      ? source.indexOf(statement.source)
-      : -1;
-    const lines = source.split(/\r?\n/);
-    const lineIndex = Math.max(
-      0,
-      Math.min(lines.length - 1, statement.line - 1)
-    );
-    const lineBreakLength = source.includes("\r\n") ? 2 : 1;
-    const lineStart = sourceStart >= 0
-      ? sourceStart
-      : lines
-        .slice(0, lineIndex)
-        .reduce(
-          (length, line) => length + line.length + lineBreakLength,
-          0
-        );
-    const lineEnd = sourceStart >= 0
-      ? lineStart + statement.source.length
-      : lineStart + (lines[lineIndex] || "").length;
-
-    DOM.codeEditor.focus();
-    DOM.codeEditor.setSelectionRange(lineStart, lineEnd);
-    DOM.editorScroll.scrollTop =
-      lineIndex * parseFloat(
-        getComputedStyle(document.documentElement)
-          .getPropertyValue("--editor-line-px")
-      );
-  }
-
   function addNoteToSelectedTrack() {
-    const project = getEditableProject();
+    saveCurrentTrackEditorState();
+    const project = state.project;
     if (!project) return;
 
     const trackName = state.selectedTrack;
-    if (!project.tracks.some(track => track.name === trackName) &&
-        trackName !== "default") {
+    const track = project.tracks.find(item => item.name === trackName);
+    if (!track) {
       reportError(new SWSError(
         1,
         "ValueError",
@@ -4173,12 +4348,16 @@ input[type="color"] {
       return;
     }
 
-    const source = DOM.codeEditor.value;
+    const source = track.code;
     const newline = source.includes("\r\n") ? "\r\n" : "\n";
     const separator = source && !/[\r\n]$/.test(source) ? newline : "";
     const insertion = `snd("piano","#480",C4 class="${escapeString(trackName)}");`;
     const insertAt = source.length + separator.length;
     DOM.codeEditor.value = `${source}${separator}${insertion}`;
+    track.code = DOM.codeEditor.value;
+    track.editorState.selectionStart = insertAt + insertion.indexOf("C4");
+    track.editorState.selectionEnd = track.editorState.selectionStart + 2;
+    state.source = composeProjectSource(project);
     const pitchStart = insertAt + insertion.indexOf("C4");
     DOM.codeEditor.setSelectionRange(pitchStart, pitchStart + 2);
     DOM.codeEditor.dispatchEvent(new Event("input", { bubbles: true }));
@@ -4218,9 +4397,7 @@ input[type="color"] {
         }
 
         const literal = source.slice(index, end);
-        const isTrackReference =
-          /\bclass\s*=\s*$/.test(code) ||
-          /\bindex\.class\s*\(\s*$/.test(code);
+        const isTrackReference = /\bclass\s*=\s*$/.test(code);
         const value = literal.slice(1, -1)
           .replace(/\\"/g, '"')
           .replace(/\\\\/g, "\\");
@@ -4411,12 +4588,9 @@ input[type="color"] {
   }
 
   function getEditableProject() {
-    try {
-      return new Compiler(DOM.codeEditor.value).compile();
-    } catch (error) {
-      reportError(error);
-      return null;
-    }
+    saveCurrentTrackEditorState();
+    if (state.dirty || !state.project) return compileCurrent(false);
+    return state.project;
   }
 
   function openTrackModal(mode, name = "") {
@@ -4488,17 +4662,17 @@ input[type="color"] {
     const trackName = validateTrackName(name, project);
     if (!trackName) return false;
 
-    const source = DOM.codeEditor.value;
-    const newline = source.includes("\r\n") ? "\r\n" : "\n";
-    const separator = source && !/[\r\n]$/.test(source) ? newline : "";
-    const updatedSource =
-      `${source}${separator}index.class("${escapeString(trackName)}");`;
-
-    return applyTrackSourceEdit(
-      updatedSource,
-      trackName,
-      `Added track: ${trackName}`
-    );
+    project.ensureTrack(trackName);
+    state.pendingTrackNames.add(trackName);
+    state.selectedTrack = trackName;
+    state.project = project;
+    state.source = composeProjectSource(project);
+    state.dirty = true;
+    renderTracks(project);
+    loadTrackIntoEditor(trackName, true);
+    setStatus("Modified", true);
+    log(`Added track: ${trackName}`, "success", trackName);
+    return true;
   }
 
   function renameSelectedTrack(newName) {
@@ -4516,16 +4690,25 @@ input[type="color"] {
     );
     if (!validatedName) return false;
 
-    const updatedSource = replaceTrackReferences(
-      DOM.codeEditor.value,
+    track.code = replaceTrackReferences(
+      track.code,
       currentName,
       validatedName
     );
-    return applyTrackSourceEdit(
-      updatedSource,
-      validatedName,
-      `Renamed track: ${currentName} -> ${validatedName}`
-    );
+    project.renameTrack(currentName, validatedName);
+    if (state.pendingTrackNames.delete(currentName)) {
+      state.pendingTrackNames.add(validatedName);
+    }
+    state.selectedTrack = validatedName;
+    state.source = composeProjectSource(project);
+    state.dirty = true;
+    renderTracks(project);
+    loadTrackIntoEditor(validatedName, true);
+    setStatus("Modified", true);
+    log(`Renamed track: ${currentName} -> ${validatedName}`,
+      "success",
+      validatedName);
+    return true;
   }
 
   function deleteSelectedTrack() {
@@ -4538,12 +4721,19 @@ input[type="color"] {
       return false;
     }
 
-    const updatedSource = removeTrackSource(DOM.codeEditor.value, project, track);
-    return applyTrackSourceEdit(
-      updatedSource,
-      project.tracks.find(item => item.name !== currentName)?.name || "default",
-      `Deleted track: ${currentName}; its events were removed`
-    );
+    project.removeTrack(currentName);
+    state.pendingTrackNames.delete(currentName);
+    state.selectedTrack = project.tracks[0]?.name || "default";
+    state.project = project;
+    state.source = composeProjectSource(project);
+    state.dirty = true;
+    renderTracks(project);
+    loadTrackIntoEditor(state.selectedTrack, true);
+    setStatus("Modified", true);
+    log(`Deleted track: ${currentName}; its events were removed`,
+      "success",
+      state.selectedTrack);
+    return true;
   }
 
   function beginAddTrack() {
@@ -4633,6 +4823,10 @@ input[type="color"] {
             };
         const text = isUst ? ustToSs(decoded.text) : decoded.text;
         DOM.codeEditor.value = text;
+        state.project = null;
+        state.lastSuccessfulProject = null;
+        state.pendingTrackNames.clear();
+        state.selectedTrack = "default";
 
         if (isUst) {
           const baseName = file.name.replace(/\.ust$/i, "");
@@ -4650,7 +4844,13 @@ input[type="color"] {
         }
 
         refreshEditor();
-        compileCurrent();
+        state.pendingTrackNames.clear();
+        const project = compileSource(text, true);
+        if (project) {
+          state.selectedTrack = project.tracks[0]?.name || "default";
+          renderTracks(project);
+          loadTrackIntoEditor(state.selectedTrack);
+        }
       } catch (error) {
         reportError(error instanceof SWSError
           ? error
@@ -4660,9 +4860,12 @@ input[type="color"] {
   }
 
   function saveSs(request = null, project = state.project) {
+    saveCurrentTrackEditorState();
     const source = request && project
       ? project.source
-      : DOM.codeEditor?.value || state.source;
+      : project
+        ? composeProjectSource(project)
+        : DOM.codeEditor?.value || state.source;
     const filename = outputFilename(
       request?.filename || state.fileName || "song",
       "ss"
@@ -5800,6 +6003,8 @@ input[type="color"] {
     if (!DOM.codeEditor) return;
 
     DOM.codeEditor.addEventListener("input", () => {
+      saveCurrentTrackEditorState();
+      state.source = composeProjectSource(state.project);
       state.dirty = true;
       setStatus("Modified", true);
       refreshEditor();
@@ -5822,6 +6027,8 @@ input[type="color"] {
       DOM.codeEditor.selectionStart = start + 2;
       DOM.codeEditor.selectionEnd = start + 2;
 
+      saveCurrentTrackEditorState();
+      state.source = composeProjectSource(state.project);
       state.dirty = true;
       setStatus("Modified", true);
       refreshEditor();
@@ -5869,7 +6076,7 @@ input[type="color"] {
       event.target.value = "";
     });
 
-    DOM.saveButton?.addEventListener("click", saveSs);
+    DOM.saveButton?.addEventListener("click", () => saveSs());
     DOM.compileButton?.addEventListener("click", compileCurrent);
 
     DOM.playButton?.addEventListener("click", () => {
@@ -5902,7 +6109,7 @@ input[type="color"] {
       exportUst(getCurrentProject());
     });
 
-    DOM.exportSsButton?.addEventListener("click", saveSs);
+    DOM.exportSsButton?.addEventListener("click", () => saveSs());
 
     DOM.clearConsoleButton?.addEventListener("click", () => {
       state.consoleEntries = [];
@@ -5960,13 +6167,16 @@ input[type="color"] {
     bindEditorEvents();
     bindToolbarEvents();
 
+    state.project = null;
     const project = compileSource(
       DOM.codeEditor?.value || "",
       true
     );
 
     if (project) {
+      state.selectedTrack = project.tracks[0]?.name || "default";
       renderTracks(project);
+      loadTrackIntoEditor(state.selectedTrack);
       log("SWS Web Console ready", "info");
     }
   }
