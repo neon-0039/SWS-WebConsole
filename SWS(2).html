@@ -350,7 +350,7 @@ input[type="color"] {
 
 #trackActions {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   padding: 8px;
   border-top: 1px solid var(--border);
@@ -883,7 +883,7 @@ input[type="color"] {
   }
 
   #trackActions {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   #editorWorkspace {
@@ -1070,9 +1070,9 @@ input[type="color"] {
       <div id="trackList" role="listbox" aria-label="SWS tracks">
         <div
           class="track-item selected"
-          id="track-main"
-          data-track-name="main"
-          data-class-name="main"
+          id="track-default"
+          data-track-name="default"
+          data-class-name="default"
           data-track-color="#2196f3"
           data-track-instrument="synth"
           role="option"
@@ -1082,16 +1082,17 @@ input[type="color"] {
           <span class="track-dot main" aria-hidden="true"></span>
 
           <span class="track-info">
-            <span class="track-name">main</span>
-            <span class="track-meta">class: main · cursor: 0 beat</span>
+            <span class="track-name">default</span>
+            <span class="track-meta">class: default · cursor: 0 beat</span>
           </span>
 
-          <span class="track-state" data-track-state="main">idle</span>
+          <span class="track-state" data-track-state="default">idle</span>
         </div>
       </div>
 
       <div id="trackActions">
         <button id="addTrackButton" type="button">+ Add</button>
+        <button id="addNoteButton" type="button">+ Note</button>
         <button id="renameTrackButton" type="button">Rename</button>
         <button id="deleteTrackButton" type="button">Delete</button>
       </div>
@@ -1166,7 +1167,7 @@ input[type="color"] {
 
       <section id="consolePanel" aria-label="SWS console">
         <header class="console-header">
-          <span class="console-title">Console</span>
+          <span id="consoleTitle" class="console-title">Console</span>
 
           <div class="console-actions">
             <button id="clearConsoleButton" type="button">Clear</button>
@@ -1179,9 +1180,6 @@ input[type="color"] {
           aria-live="polite"
           aria-label="SWS console output"
         >
-          <div class="console-line info">
-            SWS Web Console ready.
-          </div>
         </div>
 
         <section
@@ -1578,8 +1576,8 @@ input[type="color"] {
   const DEFAULT_VOLUME = 100;
 
   const VALID_INSTRUMENTS = new Set([
-    "piano", "grand_piano", "synth", "synth_lead", "synth_bass",
-    "bass", "drum", "kick", "hihat", "hi_hat", "open_hihat", "snare",
+    "piano", "grand_piano", "guitar", "synth", "synth_lead", "synth_bass",
+    "bass", "drum", "drums", "kick", "hihat", "hi_hat", "open_hihat", "snare",
     "sine", "square", "triangle", "saw", "sawtooth", "null"
   ]);
 
@@ -1621,13 +1619,14 @@ input[type="color"] {
     source: "",
     fileName: "untitled.ss",
     dirty: false,
-    selectedTrack: "main",
+    selectedTrack: "default",
     playing: false,
     audioContext: null,
     audioNodes: new Set(),
     timers: new Set(),
     plugins: new Map(),
     errorLines: new Set(),
+    consoleEntries: [],
     trackModalMode: null
   };
 
@@ -1640,12 +1639,12 @@ input[type="color"] {
       "fileInput", "openButton", "saveButton", "compileButton",
       "playButton", "stopButton", "midiButton", "wavButton",
       "ustButton", "pluginButton", "themeToggle",
-      "trackList", "trackCount", "addTrackButton",
+      "trackList", "trackCount", "addTrackButton", "addNoteButton",
       "renameTrackButton", "deleteTrackButton", "lineNumbers",
       "editorScroll", "editorContent", "highlightLayer", "highlightCode",
       "codeEditor", "editorFileName", "editorStatusText",
       "editorStatusDot", "tempoValue", "keyValue", "cursorValue",
-      "compileStatus", "consoleOutput", "clearConsoleButton",
+      "compileStatus", "consoleOutput", "consoleTitle", "clearConsoleButton",
       "errorPanel", "errorLine", "errorType", "errorMessage",
       "exportWavButton", "exportMidiButton", "exportUstButton",
       "exportSsButton", "pluginModal", "pluginFileInput",
@@ -1705,10 +1704,17 @@ input[type="color"] {
       this.duration = duration;
       this.notes = notes;
       this.line = line;
-      this.className = className || "main";
+      this.className = className || "default";
+      this.trackId = this.className;
       this.volume = volume;
       this.lyric = notes.find(note => note.lyric)?.lyric || null;
       this.source = "";
+      this.sourceId = null;
+      this.sourceStart = null;
+      this.sourceEnd = null;
+      this.sourceOrder = null;
+      this.classExplicit = false;
+      this.classImplicit = false;
       this.sourcePosition = { line, className: this.className };
       this.cntGroup = null;
       this.cntRole = null;
@@ -1727,17 +1733,22 @@ input[type="color"] {
         notes: this.notes.map(note => note.toJSON()),
         line: this.line,
         class: this.className,
+        track_id: this.trackId,
         lyric: this.lyric,
         volume: this.volume,
         source: this.source,
-        source_position: this.sourcePosition
+        source_position: this.sourcePosition,
+        source_id: this.sourceId,
+        source_start: this.sourceStart,
+        source_end: this.sourceEnd,
+        source_order: this.sourceOrder
       };
     }
   }
 
   class Track {
     constructor(name) {
-      this.id = makeId();
+      this.id = name;
       this.name = name;
       this.className = name;
       this.sourceClassName = name;
@@ -1745,16 +1756,30 @@ input[type="color"] {
       this.cursor = 0;
       this.events = [];
       this.sourceStatements = [];
+      this.hasImplicitSource = false;
       this.order = 0;
     }
 
     addEvent(event) {
+      if (event.classImplicit) this.hasImplicitSource = true;
       this.events.push(event);
       this.sourceStatements.push({
         line: event.line,
         source: event.source,
-        event
+        start: event.sourceStart,
+        end: event.sourceEnd,
+        sourceId: event.sourceId,
+        expansionStart: event.expansionSourceStart,
+        expansionEnd: event.expansionSourceEnd,
+        event,
+        kind: "event",
+        implicit: event.classImplicit
       });
+    }
+
+    addSourceStatement(statement) {
+      this.sourceStatements.push(statement);
+      if (statement.implicit) this.hasImplicitSource = true;
     }
   }
 
@@ -1814,11 +1839,11 @@ input[type="color"] {
       this.source = "";
       this.sourceLines = [];
       this.sourceMetadata = {};
-      this.mainTrack = this.ensureTrack("main");
+      this.trackDeclarations = [];
     }
 
     ensureTrack(name) {
-      const trackName = normalizeName(name);
+      const trackName = normalizeName(name, "default");
       let track = this.tracks.find(item => item.name === trackName);
 
       if (!track) {
@@ -1831,12 +1856,65 @@ input[type="color"] {
     }
 
     getTrack(name) {
-      return this.ensureTrack(name || "main");
+      return this.ensureTrack(name || "default");
     }
 
     addEvent(event) {
       this.events.push(event);
-      this.getTrack(event.className).addEvent(event);
+      const track = this.getTrack(event.className);
+      event.className = track.name;
+      event.trackId = track.id;
+      event.sourcePosition.className = track.name;
+      track.addEvent(event);
+    }
+
+    renameTrack(oldName, newName) {
+      if (oldName === newName) return true;
+      if (typeof newName !== "string" || newName.length === 0) {
+        return false;
+      }
+      const track = this.tracks.find(item => item.name === oldName);
+      if (!track || this.tracks.some(item => item.name === newName)) {
+        return false;
+      }
+
+      track.id = newName;
+      track.name = newName;
+      track.className = newName;
+      track.sourceClassName = newName;
+      track.color = colorForTrack(newName);
+
+      for (const event of track.events) {
+        event.trackId = newName;
+        event.className = newName;
+        event.sourcePosition.className = newName;
+      }
+      this.trackDeclarations = this.trackDeclarations.map(declaration => {
+        return declaration.name === oldName
+          ? { ...declaration, name: newName }
+          : declaration;
+      });
+      for (const request of this.outputRequests) {
+        if (request.className === oldName) request.className = newName;
+      }
+
+      return true;
+    }
+
+    removeTrack(name) {
+      const trackIndex = this.tracks.findIndex(item => item.name === name);
+      if (trackIndex < 0) return null;
+
+      const [track] = this.tracks.splice(trackIndex, 1);
+      const removedEvents = new Set(track.events);
+      this.events = this.events.filter(event => !removedEvents.has(event));
+      this.trackDeclarations = this.trackDeclarations.filter(
+        declaration => declaration.name !== name
+      );
+      this.tracks.forEach((item, index) => {
+        item.order = index;
+      });
+      return track;
     }
 
     toPluginData() {
@@ -1853,15 +1931,9 @@ input[type="color"] {
     }
   }
 
-  function makeId() {
-    if (globalThis.crypto?.randomUUID) {
-      return globalThis.crypto.randomUUID();
-    }
-    return `sws-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  }
-
-  function normalizeName(value) {
-    return String(value ?? "").trim() || "main";
+  function normalizeName(value, fallback = "default") {
+    const name = String(value ?? "");
+    return name.length ? name : fallback;
   }
 
   function colorForTrack(name) {
@@ -1937,13 +2009,42 @@ input[type="color"] {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  function log(message, type = "info") {
+  function renderConsole() {
     if (!DOM.consoleOutput) return;
-    const line = document.createElement("div");
-    line.className = `console-line ${type}`;
-    line.textContent = String(message);
-    DOM.consoleOutput.appendChild(line);
+
+    const entries = state.consoleEntries.filter(
+      entry => entry.trackName === null ||
+        entry.trackName === state.selectedTrack
+    );
+    DOM.consoleOutput.replaceChildren();
+    for (const entry of entries) {
+      const line = document.createElement("div");
+      line.className = `console-line ${entry.type}`;
+      line.textContent = entry.message;
+      DOM.consoleOutput.appendChild(line);
+    }
     DOM.consoleOutput.scrollTop = DOM.consoleOutput.scrollHeight;
+
+    if (DOM.consoleTitle) {
+      DOM.consoleTitle.textContent = `Console · ${state.selectedTrack}`;
+    }
+    DOM.consoleOutput.setAttribute(
+      "aria-label",
+      `Console output for track ${state.selectedTrack}`
+    );
+  }
+
+  function log(message, type = "info", trackName = null) {
+    if (!DOM.consoleOutput) return;
+    state.consoleEntries.push({
+      message: String(message),
+      type,
+      trackName
+    });
+    if (state.consoleEntries.length > 1000) {
+      state.consoleEntries.splice(0, state.consoleEntries.length - 1000);
+    }
+    renderConsole();
   }
 
   function setStatus(message, dirty = false) {
@@ -2228,8 +2329,8 @@ input[type="color"] {
 
       if (!inComment) {
         result += ch;
-      } else if (ch === "\n") {
-        result += "\n";
+      } else {
+        result += ch === "\n" ? "\n" : " ";
       }
     }
 
@@ -2248,13 +2349,14 @@ input[type="color"] {
     return (text.match(/\n/g) || []).length;
   }
 
-  function scanStructure(source) {
+  function scanStructure(source, baseOffset = 0, baseLine = 1) {
     const clean = removeComments(source);
     const statements = [];
 
     let buffer = "";
-    let startLine = 1;
-    let line = 1;
+    let startLine = baseLine;
+    let line = baseLine;
+    let bufferStart = 0;
     let inString = false;
     let parentheses = 0;
     let brackets = 0;
@@ -2263,6 +2365,7 @@ input[type="color"] {
       const ch = clean[i];
 
       if (ch === "\n") line++;
+      if (!buffer.trim() && !/\s/.test(ch)) startLine = line;
 
       if (ch === '"' && clean[i - 1] !== "\\") {
         inString = !inString;
@@ -2317,13 +2420,18 @@ input[type="color"] {
           type: "block",
           header,
           body: clean.slice(i + 1, close),
-          line: startLine
+          line: startLine,
+          start: baseOffset + clean.indexOf(header, bufferStart),
+          end: baseOffset + close + 1,
+          bodyStart: baseOffset + i + 1,
+          bodyLine: line
         });
 
         line += countNewlines(clean.slice(i, close + 1));
         i = close;
         buffer = "";
-        startLine = line + 1;
+        bufferStart = i + 1;
+        startLine = line;
         continue;
       }
 
@@ -2339,12 +2447,15 @@ input[type="color"] {
             type: "statement",
             text,
             line: startLine,
-            terminated: true
+            terminated: true,
+            start: baseOffset + clean.indexOf(text, bufferStart),
+            end: baseOffset + i + 1
           });
         }
 
         buffer = "";
-        startLine = line + 1;
+        bufferStart = i + 1;
+        startLine = line;
         continue;
       }
 
@@ -2358,6 +2469,8 @@ input[type="color"] {
         type: "statement",
         text: trailing,
         line: startLine,
+        start: baseOffset + clean.indexOf(trailing, bufferStart),
+        end: baseOffset + clean.length,
         terminated: false
       });
     }
@@ -2517,8 +2630,10 @@ input[type="color"] {
 
       if (
         brackets === 0 &&
-        /\s/.test(ch) &&
-        /^\s*(?:class|Lyric|vol)\s*=/.test(text.slice(i))
+        (/\s/.test(ch) || ch === ",") &&
+        /^\s*(?:class|Lyric|vol)\s*=/.test(
+          text.slice(i + (ch === "," ? 1 : 0))
+        )
       ) {
         return i;
       }
@@ -2532,7 +2647,10 @@ input[type="color"] {
     let index = 0;
 
     while (index < text.length) {
-      while (index < text.length && /\s/.test(text[index])) index++;
+      while (
+        index < text.length &&
+        (/\s/.test(text[index]) || text[index] === ",")
+      ) index++;
       if (index >= text.length) break;
 
       const nameMatch = text.slice(index).match(
@@ -2646,13 +2764,22 @@ input[type="color"] {
     const attributeStart = findAttributeStart(text);
     const pitchText = attributeStart < 0
       ? text.trim()
-      : text.slice(0, attributeStart).trim();
+      : text.slice(0, attributeStart).trim().replace(/,$/, "").trim();
     const attributeText = attributeStart < 0
       ? ""
       : text.slice(attributeStart).trim();
 
     const attributes = parseAttributes(attributeText, line);
-    const className = normalizeName(attributes.class || "main");
+    const classExplicit = Object.prototype.hasOwnProperty.call(
+      attributes,
+      "class"
+    );
+    if (classExplicit && attributes.class.length === 0) {
+      throw new SWSError(line, "SyntaxError", "class must not be empty");
+    }
+    const className = classExplicit
+      ? normalizeName(attributes.class)
+      : "default";
     const lyric = Object.prototype.hasOwnProperty.call(
       attributes,
       "Lyric"
@@ -2709,6 +2836,7 @@ input[type="color"] {
     return {
       notes,
       className,
+      classExplicit,
       lyric,
       volume
     };
@@ -2721,15 +2849,20 @@ input[type="color"] {
   class Compiler {
     constructor(source) {
       this.source = source;
+      this.cleanSource = null;
       this.project = new Project();
       this.chips = new Map();
       this.chipStack = new Set();
       this.tempoconstSet = false;
       this.mainCursor = 0;
       this.currentUstClass = null;
+      this.currentTrackName = "default";
+      this.expansionTrackName = null;
+      this.expansionSourceRange = null;
     }
 
     compile() {
+      this.cleanSource = removeComments(this.source);
       const statements = scanStructure(this.source);
 
       for (const statement of statements) {
@@ -2742,7 +2875,7 @@ input[type="color"] {
       this.project.sourceLines = this.source.split(/\r?\n/);
 
       this.project.events.sort((a, b) => {
-        return a.start - b.start || a.line - b.line;
+        return a.sourceOrder - b.sourceOrder || a.line - b.line;
       });
 
       for (const track of this.project.tracks) {
@@ -2754,7 +2887,64 @@ input[type="color"] {
       return this.project;
     }
 
+    findSourceRange(text, line, from = null) {
+      if (this.currentStatement?.text === text &&
+          Number.isInteger(this.currentStatement.start) &&
+          Number.isInteger(this.currentStatement.end)) {
+        return {
+          start: this.currentStatement.start,
+          end: this.currentStatement.end
+        };
+      }
+
+      const lines = this.source.split(/\r?\n/);
+      let lineStart = 0;
+      for (let index = 0; index < Math.max(0, line - 1); index++) {
+        lineStart += lines[index].length;
+        const next = this.source.indexOf("\n", lineStart);
+        if (next < 0) break;
+        lineStart = next + 1;
+      }
+
+      const searchStart = Math.max(
+        lineStart,
+        from ?? this.currentStatement?.start ?? lineStart
+      );
+      const source = this.cleanSource || removeComments(this.source);
+      const sourceStart = source.indexOf(text, searchStart);
+      if (sourceStart < 0) return { start: null, end: null };
+      let sourceEnd = sourceStart + text.length;
+      let terminator = sourceEnd;
+      while (/\s/.test(source[terminator] || "") &&
+          source[terminator] !== "\n") {
+        terminator++;
+      }
+      if (source[terminator] === ";") sourceEnd = terminator + 1;
+      return { start: sourceStart, end: sourceEnd };
+    }
+
+    addTrackSourceStatement(track, text, line, kind, implicit = false) {
+      const range = this.findSourceRange(text, line);
+      const statement = {
+        line,
+        source: text,
+        start: range.start,
+        end: range.end,
+        sourceId: `${line}:${range.start ?? "generated"}`,
+        kind,
+        implicit
+      };
+
+      if (this.expansionSourceRange) {
+        statement.expansionStart = this.expansionSourceRange.start;
+        statement.expansionEnd = this.expansionSourceRange.end;
+      }
+      track.addSourceStatement(statement);
+      return statement;
+    }
+
     compileStatement(statement) {
+      this.currentStatement = statement;
       if (statement.type === "block") {
         this.compileBlock(statement);
         return;
@@ -2860,7 +3050,11 @@ input[type="color"] {
         this.chips.set(name, {
           name,
           line,
-          statements: scanStructure(statement.body)
+          statements: scanStructure(
+            statement.body,
+            statement.bodyStart,
+            statement.bodyLine
+          )
         });
 
         return;
@@ -2881,12 +3075,24 @@ input[type="color"] {
           );
         }
 
-        const body = scanStructure(statement.body);
-
-        for (let i = 0; i < count; i++) {
-          for (const child of body) {
-            this.compileStatement(child);
+        const body = scanStructure(
+          statement.body,
+          statement.bodyStart,
+          statement.bodyLine
+        );
+        const previousExpansionTrack = this.expansionTrackName;
+        const previousCurrentTrack = this.currentTrackName;
+        this.expansionTrackName = previousCurrentTrack;
+        try {
+          for (let i = 0; i < count; i++) {
+            for (const child of body) {
+              this.compileStatement(child);
+            }
           }
+          this.mainCursor = this.project.getTrack(previousCurrentTrack).cursor;
+        } finally {
+          this.expansionTrackName = previousExpansionTrack;
+          this.currentTrackName = previousCurrentTrack;
         }
 
         return;
@@ -2973,9 +3179,19 @@ input[type="color"] {
         );
       }
 
-      const mainTrack = this.project.getTrack("main");
-      mainTrack.cursor += parseDuration(args[0], line);
-      this.mainCursor = mainTrack.cursor;
+      const track = this.project.getTrack(
+        this.expansionTrackName || this.currentTrackName
+      );
+      const duration = parseDuration(args[0], line);
+      track.cursor += duration;
+      this.mainCursor = track.cursor;
+      this.addTrackSourceStatement(
+        track,
+        text,
+        line,
+        "sleep",
+        track.name === "default"
+      );
     }
 
     compileSleepTicks(text, line) {
@@ -2998,9 +3214,18 @@ input[type="color"] {
         );
       }
 
-      const mainTrack = this.project.getTrack("main");
-      mainTrack.cursor += ticks / PPQ;
-      this.mainCursor = mainTrack.cursor;
+      const track = this.project.getTrack(
+        this.expansionTrackName || this.currentTrackName
+      );
+      track.cursor += ticks / PPQ;
+      this.mainCursor = track.cursor;
+      this.addTrackSourceStatement(
+        track,
+        text,
+        line,
+        "sleep",
+        track.name === "default"
+      );
     }
 
     compileOutput(text, line) {
@@ -3076,7 +3301,15 @@ input[type="color"] {
       }
 
       const name = parseQuoted(args[0], line, "class name");
-      this.project.ensureTrack(name);
+      const track = this.project.ensureTrack(name);
+      const range = this.findSourceRange(text, line);
+      this.project.trackDeclarations.push({
+        name,
+        line,
+        source: text,
+        start: range.start,
+        end: range.end
+      });
       this.currentUstClass = name;
     }
 
@@ -3120,8 +3353,22 @@ input[type="color"] {
       this.chipStack.add(name);
 
       try {
-        for (const child of this.chips.get(name).statements) {
-          this.compileStatement(child);
+        const previousExpansionTrack = this.expansionTrackName;
+        const previousExpansionSourceRange = this.expansionSourceRange;
+        const previousCurrentTrack = this.currentTrackName;
+        this.expansionTrackName = previousExpansionTrack || previousCurrentTrack;
+        if (!previousExpansionSourceRange) {
+          this.expansionSourceRange = this.findSourceRange(text, line);
+        }
+        try {
+          for (const child of this.chips.get(name).statements) {
+            this.compileStatement(child);
+          }
+        } finally {
+          this.expansionTrackName = previousExpansionTrack;
+          this.expansionSourceRange = previousExpansionSourceRange;
+          this.currentTrackName = previousCurrentTrack;
+          this.mainCursor = this.project.getTrack(previousCurrentTrack).cursor;
         }
       } finally {
         this.chipStack.delete(name);
@@ -3132,7 +3379,7 @@ input[type="color"] {
       const parts = splitCnt(text);
 
       if (parts.length > 1) {
-        this.compileCnt(parts, line);
+        this.compileCnt(parts, line, text);
       } else {
         this.compileSingleSnd(text, line);
       }
@@ -3187,12 +3434,16 @@ input[type="color"] {
         this.project.key,
         line
       );
+      const className = parsed.classExplicit
+        ? parsed.className
+        : this.expansionTrackName || parsed.className;
 
       return {
         instrument,
         duration,
         notes: parsed.notes,
-        className: parsed.className,
+        className,
+        classExplicit: parsed.classExplicit,
         volume: parsed.volume,
         source: text
       };
@@ -3214,25 +3465,76 @@ input[type="color"] {
       );
 
       event.source = parsed.source;
+      event.classExplicit = parsed.classExplicit;
+      event.classImplicit =
+        !parsed.classExplicit && !this.expansionTrackName;
+      const range = options.sourceRange || this.findSourceRange(text, line);
+      event.sourceStart = range.start;
+      event.sourceEnd = range.end;
+      event.sourceId =
+        `${line}:${range.start ?? "generated"}:${this.project.events.length}`;
+      event.sourceOrder =
+        this.expansionSourceRange?.start ?? range.start ??
+        this.project.events.length;
+      if (this.expansionSourceRange) {
+        event.expansionSourceStart = this.expansionSourceRange.start;
+        event.expansionSourceEnd = this.expansionSourceRange.end;
+      }
       event.cntGroup = options.cntGroup || null;
       event.cntRole = options.cntRole || null;
 
       this.project.addEvent(event);
+      this.currentTrackName = track.name;
 
       if (options.updateCursor !== false) {
         track.cursor = Math.max(track.cursor, event.end);
-
-        if (track.name === "main") {
-          this.mainCursor = track.cursor;
-        }
+        this.mainCursor = track.cursor;
       }
 
       return event;
     }
 
-    compileCnt(parts, line) {
+    compileCnt(parts, line, sourceText) {
+      const statementRange = this.findSourceRange(sourceText, line);
+      const expressionId = `cnt-expression-${line}-${this.project.events.length}`;
+      const tagExpression = events => {
+        events.forEach((event, index) => {
+          event.cntExpressionId = expressionId;
+          event.cntExpressionStart = statementRange.start;
+          event.cntExpressionEnd = statementRange.end;
+          event.cntPartIndex = index;
+        });
+      };
+      const parsedParts = parts.map(part => this.parseSnd(part, line));
+      const tracks = new Set(
+        parsedParts.map(parsed => parsed.className)
+      );
+      if (tracks.size > 1) {
+        let sourceSearchFrom = statementRange.start;
+        const created = [];
+        for (const part of parts) {
+          const sourceRange = this.findSourceRange(
+            part,
+            line,
+            sourceSearchFrom
+          );
+          created.push(this.compileSingleSnd(part, line, { sourceRange }));
+          sourceSearchFrom = sourceRange.end;
+        }
+        tagExpression(created);
+        return;
+      }
+
       const groupId = `cnt-${line}-${this.project.events.length}`;
+      let sourceSearchFrom = statementRange.start;
+      const leftRange = this.findSourceRange(
+        parts[0],
+        line,
+        sourceSearchFrom
+      );
+      sourceSearchFrom = leftRange.end;
       const left = this.compileSingleSnd(parts[0], line, {
+        sourceRange: leftRange,
         cntGroup: groupId,
         cntRole: "left"
       });
@@ -3269,10 +3571,31 @@ input[type="color"] {
         );
 
         event.source = parsed.source;
+        event.classExplicit = parsed.classExplicit;
+        event.classImplicit =
+          !parsed.classExplicit && !this.expansionTrackName;
+        const range = this.findSourceRange(
+          parts[i],
+          line,
+          sourceSearchFrom
+        );
+        sourceSearchFrom = range.end;
+        event.sourceStart = range.start;
+        event.sourceEnd = range.end;
+        event.sourceId =
+          `${line}:${range.start ?? "generated"}:${this.project.events.length}`;
+        event.sourceOrder =
+          this.expansionSourceRange?.start ?? range.start ??
+          this.project.events.length;
+        if (this.expansionSourceRange) {
+          event.expansionSourceStart = this.expansionSourceRange.start;
+          event.expansionSourceEnd = this.expansionSourceRange.end;
+        }
         event.cntGroup = groupId;
         event.cntRole = "right";
 
         this.project.addEvent(event);
+        this.currentTrackName = track.name;
         created.push(event);
       }
 
@@ -3297,10 +3620,12 @@ input[type="color"] {
           ...groupEvents.map(event => event.end)
         );
 
-        if (track.name === "main") {
-          this.mainCursor = track.cursor;
-        }
+        this.mainCursor = track.cursor;
       }
+      for (const event of created) {
+        event.cntGroupSize = created.length;
+      }
+      tagExpression(created);
     }
 
     findRelevantSamePitchNode(track, pitchKeys, currentEvent) {
@@ -3629,8 +3954,9 @@ input[type="color"] {
 
       log(
         `sound success:${event.line},${pitch},${formatNumber(event.duration)} beat`,
-        "success"
-      );
+          "success",
+          event.className
+        );
     }
 
     try {
@@ -3674,9 +4000,9 @@ input[type="color"] {
   }
 
   function updateProjectInfo(project) {
-    const main = project.tracks.find(
-      track => track.name === "main"
-    );
+    const selected = project.tracks.find(
+      track => track.name === state.selectedTrack
+    ) || project.tracks[0];
 
     if (DOM.tempo) {
       DOM.tempo.textContent = String(
@@ -3688,7 +4014,7 @@ input[type="color"] {
 
     if (DOM.cursor) {
       DOM.cursor.textContent =
-        `${formatNumber(main?.cursor || 0)} beat`;
+        `${formatNumber(selected?.cursor || 0)} beat`;
     }
   }
 
@@ -3696,7 +4022,7 @@ input[type="color"] {
     if (!DOM.trackList || !project) return;
 
     if (!project.tracks.some(track => track.name === state.selectedTrack)) {
-      state.selectedTrack = "main";
+      state.selectedTrack = project.tracks[0]?.name || "default";
     }
 
     DOM.trackList.replaceChildren();
@@ -3707,6 +4033,7 @@ input[type="color"] {
       item.dataset.trackName = track.name;
       item.dataset.className = track.className;
       item.setAttribute("role", "option");
+      item.tabIndex = 0;
       item.setAttribute(
         "aria-selected",
         state.selectedTrack === track.name
@@ -3743,20 +4070,34 @@ input[type="color"] {
       item.append(dot, info, status);
       DOM.trackList.appendChild(item);
 
-      item.addEventListener("click", () => {
+      const selectTrack = () => {
         state.selectedTrack = track.name;
         renderTracks(project);
+        focusTrackSource(project, track.name);
+      };
+
+      item.addEventListener("click", selectTrack);
+      item.addEventListener("keydown", event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        selectTrack();
       });
     }
 
+    if (DOM.addNoteButton) {
+      DOM.addNoteButton.disabled =
+        state.selectedTrack !== "default" &&
+        !project.tracks.some(track => track.name === state.selectedTrack);
+    }
     if (DOM.renameTrackButton) {
       DOM.renameTrackButton.disabled =
-        state.selectedTrack === "main" ||
+        Boolean(project.tracks.find(
+          track => track.name === state.selectedTrack
+        )?.hasImplicitSource) ||
         !project.tracks.some(track => track.name === state.selectedTrack);
     }
     if (DOM.deleteTrackButton) {
       DOM.deleteTrackButton.disabled =
-        state.selectedTrack === "main" ||
         !project.tracks.some(track => track.name === state.selectedTrack);
     }
 
@@ -3764,6 +4105,85 @@ input[type="color"] {
       DOM.trackCount.textContent =
         `${project.tracks.length} track${project.tracks.length === 1 ? "" : "s"}`;
     }
+    updateProjectInfo(project);
+    renderConsole();
+  }
+
+  function focusTrackSource(project, trackName) {
+    if (!DOM.codeEditor) return;
+
+    const track = project.tracks.find(item => item.name === trackName);
+    const statement = track?.sourceStatements
+      .slice()
+      .sort((a, b) => a.line - b.line)[0];
+
+    if (!statement) {
+      DOM.codeEditor.focus();
+      DOM.codeEditor.setSelectionRange(
+        DOM.codeEditor.value.length,
+        DOM.codeEditor.value.length
+      );
+      log(`Track "${trackName}" has no notes yet. Use + Note to add one.`, "info", trackName);
+      return;
+    }
+
+    const source = DOM.codeEditor.value;
+    const sourceStart = statement.source
+      ? source.indexOf(statement.source)
+      : -1;
+    const lines = source.split(/\r?\n/);
+    const lineIndex = Math.max(
+      0,
+      Math.min(lines.length - 1, statement.line - 1)
+    );
+    const lineBreakLength = source.includes("\r\n") ? 2 : 1;
+    const lineStart = sourceStart >= 0
+      ? sourceStart
+      : lines
+        .slice(0, lineIndex)
+        .reduce(
+          (length, line) => length + line.length + lineBreakLength,
+          0
+        );
+    const lineEnd = sourceStart >= 0
+      ? lineStart + statement.source.length
+      : lineStart + (lines[lineIndex] || "").length;
+
+    DOM.codeEditor.focus();
+    DOM.codeEditor.setSelectionRange(lineStart, lineEnd);
+    DOM.editorScroll.scrollTop =
+      lineIndex * parseFloat(
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--editor-line-px")
+      );
+  }
+
+  function addNoteToSelectedTrack() {
+    const project = getEditableProject();
+    if (!project) return;
+
+    const trackName = state.selectedTrack;
+    if (!project.tracks.some(track => track.name === trackName) &&
+        trackName !== "default") {
+      reportError(new SWSError(
+        1,
+        "ValueError",
+        `track '${trackName}' no longer exists`
+      ));
+      return;
+    }
+
+    const source = DOM.codeEditor.value;
+    const newline = source.includes("\r\n") ? "\r\n" : "\n";
+    const separator = source && !/[\r\n]$/.test(source) ? newline : "";
+    const insertion = `snd("piano","#480",C4 class="${escapeString(trackName)}");`;
+    const insertAt = source.length + separator.length;
+    DOM.codeEditor.value = `${source}${separator}${insertion}`;
+    const pitchStart = insertAt + insertion.indexOf("C4");
+    DOM.codeEditor.setSelectionRange(pitchStart, pitchStart + 2);
+    DOM.codeEditor.dispatchEvent(new Event("input", { bubbles: true }));
+    DOM.codeEditor.focus();
+    log(`Added a note to track: ${trackName}. Replace the selected C4 pitch as needed.`, "success", trackName);
   }
 
   function replaceTrackReferences(source, oldName, newName) {
@@ -3826,6 +4246,144 @@ input[type="color"] {
     return result;
   }
 
+  function removeTrackSource(source, project, track) {
+    const ranges = [];
+    const cntExpressions = new Map();
+
+    for (const event of project.events) {
+      if (
+        !Number.isInteger(event.cntExpressionStart) ||
+        !Number.isInteger(event.cntExpressionEnd)
+      ) {
+        continue;
+      }
+      const key = `${event.cntExpressionStart}:${event.cntExpressionEnd}`;
+      if (!cntExpressions.has(key)) {
+        cntExpressions.set(key, {
+          start: event.cntExpressionStart,
+          end: event.cntExpressionEnd,
+          events: []
+        });
+      }
+      cntExpressions.get(key).events.push(event);
+    }
+
+    const targetEvents = new Set(track.events);
+    for (const expression of cntExpressions.values()) {
+      if (!expression.events.some(event => targetEvents.has(event))) continue;
+      const remainingParts = new Map();
+      for (const event of expression.events) {
+        if (
+          !targetEvents.has(event) &&
+          !remainingParts.has(event.cntPartIndex)
+        ) {
+          remainingParts.set(event.cntPartIndex, event.source);
+        }
+      }
+      const comments = source
+        .slice(expression.start, expression.end)
+        .match(/<[\s\S]*?>/g) || [];
+      const replacement = [
+        ...Array.from(remainingParts.entries())
+          .sort((a, b) => a[0] - b[0])
+          .map(([, statement]) => `${statement};`),
+        ...comments
+      ].join("\n");
+      ranges.push({
+        start: expression.start,
+        end: expression.end,
+        replacement
+      });
+    }
+
+    for (const statement of track.sourceStatements) {
+      let start = statement.start;
+      let end = statement.end;
+      const event = statement.event;
+      if (
+        event &&
+        Number.isInteger(event.cntExpressionStart) &&
+        Number.isInteger(event.cntExpressionEnd)
+      ) {
+        continue;
+      }
+
+      if (
+        statement.expansionStart !== undefined &&
+        (statement.kind === "sleep" || !event?.classExplicit)
+      ) {
+        start = statement.expansionStart;
+        end = statement.expansionEnd;
+      } else if (event?.cntGroup && event.cntGroupSize) {
+        const group = track.events.filter(
+          item => item.cntGroup === event.cntGroup
+        );
+        if (group.length === event.cntGroupSize) {
+          start = Math.min(...group.map(item => item.sourceStart));
+          end = Math.max(...group.map(item => item.sourceEnd));
+        }
+      }
+
+      if (Number.isInteger(start) && Number.isInteger(end) && end > start) {
+        ranges.push(adjustCntRemovalRange(source, start, end));
+      }
+    }
+
+    for (const declaration of project.trackDeclarations) {
+      if (
+        declaration.name === track.name &&
+        Number.isInteger(declaration.start) &&
+        Number.isInteger(declaration.end)
+      ) {
+        ranges.push({ start: declaration.start, end: declaration.end });
+      }
+    }
+
+    const ordered = ranges
+      .filter(range => range.start >= 0 && range.end <= source.length)
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+    const merged = [];
+    for (const range of ordered) {
+      const previous = merged[merged.length - 1];
+      if (previous && range.start <= previous.end) {
+        previous.end = Math.max(previous.end, range.end);
+      } else {
+        merged.push({ ...range });
+      }
+    }
+
+    let result = source;
+    for (const range of merged.reverse()) {
+      result =
+        result.slice(0, range.start) +
+        (range.replacement || "") +
+        result.slice(range.end);
+    }
+    return result;
+  }
+
+  function adjustCntRemovalRange(source, start, end) {
+    const nextMarker = source.indexOf("-cnt-", end);
+    if (
+      nextMarker >= 0 &&
+      /^\s*$/.test(source.slice(end, nextMarker))
+    ) {
+      let expandedEnd = nextMarker + 5;
+      while (/\s/.test(source[expandedEnd] || "")) expandedEnd++;
+      return { start, end: expandedEnd };
+    }
+
+    const previousMarker = source.lastIndexOf("-cnt-", start);
+    if (
+      previousMarker >= 0 &&
+      /^\s*$/.test(source.slice(previousMarker + 5, start))
+    ) {
+      return { start: previousMarker, end };
+    }
+
+    return { start, end };
+  }
+
   function applyTrackSourceEdit(source, selectedTrack, message) {
     try {
       new Compiler(source).compile();
@@ -3848,7 +4406,7 @@ input[type="color"] {
       return false;
     }
 
-    log(message, "success");
+    log(message, "success", selectedTrack);
     return true;
   }
 
@@ -3873,7 +4431,7 @@ input[type="color"] {
 
     const deleting = mode === "delete";
     DOM.trackModalMessage.textContent = deleting
-      ? `Delete "${name}"? Its notes will be moved to "main".`
+      ? `Delete "${name}"? Its events will be removed from the project.`
       : "";
     DOM.trackModalMessage.hidden = !deleting;
     DOM.trackNameLabel.hidden = deleting;
@@ -3900,7 +4458,7 @@ input[type="color"] {
   }
 
   function validateTrackName(name, project, currentName = null) {
-    const trackName = name.trim();
+    const trackName = String(name);
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(trackName)) {
       reportError(new SWSError(
         1,
@@ -3949,7 +4507,7 @@ input[type="color"] {
 
     const currentName = state.selectedTrack;
     const track = project.tracks.find(item => item.name === currentName);
-    if (!track || currentName === "main") return false;
+    if (!track || track.hasImplicitSource) return false;
 
     const validatedName = validateTrackName(
       newName,
@@ -3975,22 +4533,16 @@ input[type="color"] {
     if (!project) return false;
 
     const currentName = state.selectedTrack;
-    if (
-      currentName === "main" ||
-      !project.tracks.some(track => track.name === currentName)
-    ) {
+    const track = project.tracks.find(item => item.name === currentName);
+    if (!track) {
       return false;
     }
 
-    const updatedSource = replaceTrackReferences(
-      DOM.codeEditor.value,
-      currentName,
-      "main"
-    );
+    const updatedSource = removeTrackSource(DOM.codeEditor.value, project, track);
     return applyTrackSourceEdit(
       updatedSource,
-      "main",
-      `Deleted track: ${currentName}; its notes were moved to main`
+      project.tracks.find(item => item.name !== currentName)?.name || "default",
+      `Deleted track: ${currentName}; its events were removed`
     );
   }
 
@@ -4012,7 +4564,7 @@ input[type="color"] {
     const track = project.tracks.find(
       item => item.name === state.selectedTrack
     );
-    if (track && track.name !== "main") {
+    if (track && !track.hasImplicitSource) {
       openTrackModal("rename", track.name);
     }
   }
@@ -4023,7 +4575,7 @@ input[type="color"] {
     const track = project.tracks.find(
       item => item.name === state.selectedTrack
     );
-    if (track && track.name !== "main") {
+    if (track) {
       openTrackModal("delete", track.name);
     }
   }
@@ -4588,6 +5140,21 @@ input[type="color"] {
     );
   }
 
+  function generateGuitar(frequency, time, params) {
+    const phase = 2 * Math.PI * frequency * time;
+    const brightness = 0.65 + params.velocity * 0.35;
+    const pluck =
+      Math.sin(phase) * Math.exp(-2.2 * time) +
+      Math.sin(phase * 2.01) * 0.38 * Math.exp(-3.4 * time) +
+      Math.sin(phase * 3.02) * 0.18 * brightness * Math.exp(-5.2 * time) +
+      Math.sin(phase * 4.04) * 0.08 * brightness * Math.exp(-7.5 * time);
+    const pick = Math.exp(-75 * time) * (
+      noiseWhite(params.seed, params.sampleIndex) * 0.08 +
+      Math.sin(phase * 5) * 0.1
+    );
+    return softClip((pluck + pick) * (0.9 + params.velocity * 0.1));
+  }
+
   function generateKick(frequency, time, params) {
     const pitch = frequency +
       Math.max(70, frequency * 7) * Math.exp(-35 * time);
@@ -4730,6 +5297,10 @@ input[type="color"] {
       return generateBass(frequency, time, params);
     }
 
+    if (name === "guitar") {
+      return generateGuitar(frequency, time, params);
+    }
+
     if (name === "piano" || name === "grand_piano") {
       return generatePiano(frequency, time, params);
     }
@@ -4754,7 +5325,7 @@ input[type="color"] {
       );
     }
 
-    if (name === "drum") {
+    if (name === "drum" || name === "drums") {
       return generateDrum(frequency, time, params);
     }
 
@@ -4768,7 +5339,7 @@ input[type="color"] {
 
     const name = String(instrument).toLowerCase();
     const isPercussion = [
-      "kick", "snare", "hihat", "hi_hat", "open_hihat", "drum"
+      "kick", "snare", "hihat", "hi_hat", "open_hihat", "drum", "drums"
     ].includes(name);
     const attack = Math.min(
       isPercussion ? 0.002 : 0.015,
@@ -4817,6 +5388,9 @@ input[type="color"] {
     const name = String(instrument).toLowerCase();
     if (name === "piano" || name === "grand_piano") {
       return Math.max(-0.28, Math.min(0.28, (note.midi - 60) / 48));
+    }
+    if (name === "guitar") {
+      return Math.max(-0.12, Math.min(0.12, (note.midi - 60) / 72));
     }
     if (name === "hihat" || name === "hi_hat" || name === "open_hihat") {
       return 0.16;
@@ -5261,6 +5835,7 @@ input[type="color"] {
 
   function bindToolbarEvents() {
     DOM.addTrackButton?.addEventListener("click", beginAddTrack);
+    DOM.addNoteButton?.addEventListener("click", addNoteToSelectedTrack);
     DOM.renameTrackButton?.addEventListener(
       "click",
       beginRenameTrack
@@ -5330,7 +5905,8 @@ input[type="color"] {
     DOM.exportSsButton?.addEventListener("click", saveSs);
 
     DOM.clearConsoleButton?.addEventListener("click", () => {
-      DOM.consoleOutput?.replaceChildren();
+      state.consoleEntries = [];
+      renderConsole();
       clearError();
     });
 
