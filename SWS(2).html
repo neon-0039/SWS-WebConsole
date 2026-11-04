@@ -1036,8 +1036,8 @@ input[type="color"] {
       <input
         id="fileInput"
         type="file"
-        accept=".ss,.ust"
-        aria-label="Open SWS or UST file"
+        accept=".ss,.ust,.mid,.midi"
+        aria-label="Open SWS, UST or MIDI file"
       >
 
       <button id="openButton" type="button">Open</button>
@@ -1147,12 +1147,12 @@ input[type="color"] {
           <div class="editor-info-items">
             <span class="editor-info-item">
               Tempo:
-              <strong id="tempoValue">120</strong>
+              <strong id="tempoValue">—</strong>
             </span>
 
             <span class="editor-info-item">
               Key:
-              <strong id="keyValue">C</strong>
+              <strong id="keyValue">—</strong>
             </span>
 
             <span class="editor-info-item">
@@ -1618,6 +1618,7 @@ input[type="color"] {
     source: "",
     fileName: "untitled.ss",
     dirty: false,
+    playbackStarted: false,
     selectedTrack: "default",
     pendingTrackNames: new Set(),
     playing: false,
@@ -4271,12 +4272,14 @@ input[type="color"] {
     ) || project.tracks[0];
 
     if (DOM.tempo) {
-      DOM.tempo.textContent = String(
-        project.tempoMap.segments[0].tempo
-      );
+      DOM.tempo.textContent = state.playbackStarted
+        ? String(project.tempoMap.segments[0].tempo)
+        : "—";
     }
 
-    if (DOM.key) DOM.key.textContent = project.key;
+    if (DOM.key) {
+      DOM.key.textContent = state.playbackStarted ? project.key : "—";
+    }
 
     if (DOM.cursor) {
       DOM.cursor.textContent =
@@ -4829,6 +4832,7 @@ input[type="color"] {
 
   function openFile(file) {
     const isUst = file.name.toLowerCase().endsWith(".ust");
+    const isMidi = /\.(?:mid|midi)$/i.test(file.name);
     const decodeUst = async () => {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const hasUtf16Bom =
@@ -4861,14 +4865,20 @@ input[type="color"] {
       try {
         const decoded = isUst
           ? await decodeUst()
-          : {
-              text: await file.text(),
-              encoding: "utf-8"
-            };
+          : isMidi
+            ? {
+                text: midiToSs(await file.arrayBuffer()),
+                encoding: "binary"
+              }
+            : {
+                text: await file.text(),
+                encoding: "utf-8"
+              };
         const text = isUst ? ustToSs(decoded.text) : decoded.text;
         DOM.codeEditor.value = text;
         state.project = null;
         state.lastSuccessfulProject = null;
+        state.playbackStarted = false;
         state.pendingTrackNames.clear();
         state.selectedTrack = "default";
 
@@ -4876,6 +4886,10 @@ input[type="color"] {
           const baseName = file.name.replace(/\.ust$/i, "");
           state.fileName = `${baseName}.ss`;
           log(`UST translated to SS (${decoded.encoding})`, "success");
+        } else if (isMidi) {
+          const baseName = file.name.replace(/\.(?:mid|midi)$/i, "");
+          state.fileName = `${baseName}.ss`;
+          log("MIDI translated to SS", "success");
         } else {
           state.fileName = file.name;
           log("Loaded .ss", "success");
@@ -4888,12 +4902,17 @@ input[type="color"] {
         }
 
         refreshEditor();
-        state.pendingTrackNames.clear();
-        const project = compileSource(text, true);
-        if (project) {
-          state.selectedTrack = project.tracks[0]?.name || "default";
-          renderTracks(project);
-          loadTrackIntoEditor(state.selectedTrack);
+        clearError();
+        const emptyProject = new Project();
+        emptyProject.ensureTrack("default");
+        renderTracks(emptyProject);
+        if (DOM.tempo) DOM.tempo.textContent = "—";
+        if (DOM.key) DOM.key.textContent = "—";
+        if (DOM.cursor) DOM.cursor.textContent = "0 beat";
+        if (DOM.compileStatus) DOM.compileStatus.textContent = "Not compiled";
+        setStatus("Ready", false);
+        if (isMidi) {
+          log(`MIDI converted to SS:\n${text}`, "info");
         }
       } catch (error) {
         reportError(error instanceof SWSError
@@ -4928,6 +4947,297 @@ input[type="color"] {
   // ============================================================
   // UST
   // ============================================================
+
+  function midiToSs(buffer) {
+    const bytes = new Uint8Array(buffer);
+    const view = new DataView(buffer);
+    const readText = (offset, length) =>
+      String.fromCharCode(...bytes.subarray(offset, offset + length));
+    const requireBytes = (offset, length, end, label) => {
+      if (offset + length > end) {
+        throw new SWSError(1, "MIDIError", `truncated ${label}`);
+      }
+    };
+
+    if (bytes.length < 14 || readText(0, 4) !== "MThd") {
+      throw new SWSError(1, "MIDIError", "invalid MIDI header");
+    }
+
+    const headerLength = view.getUint32(4, false);
+    requireBytes(8, headerLength, bytes.length, "MIDI header");
+    if (headerLength < 6) {
+      throw new SWSError(1, "MIDIError", "MIDI header is too short");
+    }
+    const format = view.getUint16(8, false);
+    const trackCount = view.getUint16(10, false);
+    const division = view.getUint16(12, false);
+    if (format > 1) {
+      throw new SWSError(
+        1,
+        "MIDIError",
+        "format 2 MIDI files are not supported"
+      );
+    }
+    if (!trackCount || !division || (division & 0x8000)) {
+      throw new SWSError(
+        1,
+        "MIDIError",
+        "MIDI must use a positive ticks-per-beat time division"
+      );
+    }
+
+    let offset = 8 + headerLength;
+    let eventOrder = 0;
+    const tempoEvents = [];
+    const parsedTracks = [];
+    const readVariableLength = (cursor, end) => {
+      let value = 0;
+      for (let count = 0; count < 4; count++) {
+        requireBytes(cursor.position, 1, end, "variable-length quantity");
+        const byte = bytes[cursor.position++];
+        value = (value << 7) | (byte & 0x7f);
+        if (!(byte & 0x80)) return value;
+      }
+      throw new SWSError(1, "MIDIError", "invalid variable-length quantity");
+    };
+
+    for (let trackIndex = 0; trackIndex < trackCount; trackIndex++) {
+      requireBytes(offset, 8, bytes.length, "track header");
+      if (readText(offset, 4) !== "MTrk") {
+        throw new SWSError(1, "MIDIError", "missing MIDI track chunk");
+      }
+      const trackLength = view.getUint32(offset + 4, false);
+      const trackStart = offset + 8;
+      const trackEnd = trackStart + trackLength;
+      requireBytes(trackStart, trackLength, bytes.length, "track data");
+      offset = trackEnd;
+
+      const cursor = { position: trackStart };
+      const notes = [];
+      const activeNotes = new Map();
+      let tick = 0;
+      let lastTick = 0;
+      let runningStatus = 0;
+
+      while (cursor.position < trackEnd) {
+        tick += readVariableLength(cursor, trackEnd);
+        if (!Number.isSafeInteger(tick)) {
+          throw new SWSError(1, "MIDIError", "MIDI timeline is too long");
+        }
+        lastTick = tick;
+
+        const firstByte = bytes[cursor.position];
+        let status;
+        let firstData = null;
+        if (firstByte < 0x80) {
+          if (!runningStatus) {
+            throw new SWSError(1, "MIDIError", "invalid running status");
+          }
+          status = runningStatus;
+          firstData = firstByte;
+          cursor.position++;
+        } else {
+          status = firstByte;
+          cursor.position++;
+          if (status < 0xf0) runningStatus = status;
+        }
+
+        if (status === 0xff) {
+          runningStatus = 0;
+          requireBytes(cursor.position, 1, trackEnd, "meta event");
+          const metaType = bytes[cursor.position++];
+          const length = readVariableLength(cursor, trackEnd);
+          requireBytes(cursor.position, length, trackEnd, "meta event data");
+          if (metaType === 0x51 && length === 3) {
+            const microseconds =
+              (bytes[cursor.position] << 16) |
+              (bytes[cursor.position + 1] << 8) |
+              bytes[cursor.position + 2];
+            if (!microseconds) {
+              throw new SWSError(1, "MIDIError", "MIDI tempo must be positive");
+            }
+            tempoEvents.push({ tick, microseconds, order: eventOrder++ });
+          }
+          cursor.position += length;
+          if (metaType === 0x2f) break;
+          continue;
+        }
+
+        if (status === 0xf0 || status === 0xf7) {
+          runningStatus = 0;
+          const length = readVariableLength(cursor, trackEnd);
+          requireBytes(cursor.position, length, trackEnd, "system-exclusive event");
+          cursor.position += length;
+          continue;
+        }
+
+        if (status >= 0xf0) {
+          throw new SWSError(
+            1,
+            "MIDIError",
+            `unsupported MIDI status byte: 0x${status.toString(16)}`
+          );
+        }
+
+        const command = status >> 4;
+        const channel = status & 0x0f;
+        const dataLength = command === 0xc || command === 0xd ? 1 : 2;
+        const readDataByte = () => {
+          let value;
+          if (firstData !== null) {
+            value = firstData;
+            firstData = null;
+          } else {
+            requireBytes(cursor.position, 1, trackEnd, "MIDI event");
+            value = bytes[cursor.position++];
+          }
+          if (value >= 0x80) {
+            throw new SWSError(1, "MIDIError", "invalid MIDI data byte");
+          }
+          return value;
+        };
+        const data1 = readDataByte();
+        const data2 = dataLength === 2 ? readDataByte() : 0;
+
+        if (command !== 0x8 && command !== 0x9) continue;
+        const isNoteOn = command === 0x9 && data2 > 0;
+        const key = `${channel}:${data1}`;
+        if (isNoteOn) {
+          const queue = activeNotes.get(key) || [];
+          queue.push({ start: tick, pitch: data1, velocity: data2 });
+          activeNotes.set(key, queue);
+          continue;
+        }
+
+        const queue = activeNotes.get(key);
+        const active = queue?.shift();
+        if (active) {
+          notes.push({
+            ...active,
+            end: Math.max(tick, active.start + 1)
+          });
+          if (!queue.length) activeNotes.delete(key);
+        }
+      }
+
+      for (const queue of activeNotes.values()) {
+        for (const active of queue) {
+          notes.push({
+            ...active,
+            end: Math.max(lastTick, active.start + 1)
+          });
+        }
+      }
+      parsedTracks.push({ trackIndex, notes });
+    }
+
+    const toSwTicks = tick => {
+      const swTicks = Math.round(tick * 480 / division);
+      if (!Number.isSafeInteger(swTicks)) {
+        throw new SWSError(1, "MIDIError", "MIDI timeline is too long");
+      }
+      return swTicks;
+    };
+    const tempoByTick = new Map();
+    for (const event of tempoEvents.sort(
+      (left, right) => left.tick - right.tick || left.order - right.order
+    )) {
+      tempoByTick.set(toSwTicks(event.tick), event.microseconds);
+    }
+    if (!tempoByTick.has(0)) tempoByTick.set(0, 500000);
+
+    const tempos = [...tempoByTick.entries()]
+      .sort((left, right) => left[0] - right[0]);
+    const tempoAtZero = tempos.find(([tick]) => tick === 0)?.[1] || 500000;
+    const formatTempo = microseconds => {
+      const bpm = 60000000 / microseconds;
+      if (bpm > TEMPO_MAX) {
+        throw new SWSError(
+          1,
+          "MIDIError",
+          `tempo exceeds the SWS limit of ${TEMPO_MAX} BPM`
+        );
+      }
+      return String(Number(bpm.toFixed(6)));
+    };
+    const output = [
+      `tempoconst="${formatTempo(tempoAtZero)}";`,
+      'key="null";',
+      ""
+    ];
+    let tempoCursor = 0;
+    for (const [atTick, microseconds] of tempos) {
+      if (atTick === 0) continue;
+      if (atTick > tempoCursor) {
+        output.push(`sleepTicks(${atTick - tempoCursor});`);
+      }
+      output.push(`newtempo="${formatTempo(microseconds)}";`);
+      tempoCursor = atTick;
+    }
+
+    let noteCount = 0;
+    for (const track of parsedTracks) {
+      const groupedNotes = new Map();
+      for (const note of track.notes) {
+        const start = toSwTicks(note.start);
+        const end = Math.max(start + 1, toSwTicks(note.end));
+        const key = `${start}:${end}:${note.velocity}`;
+        const group = groupedNotes.get(key) || {
+          start,
+          end,
+          velocity: note.velocity,
+          pitches: []
+        };
+        group.pitches.push(note.pitch);
+        groupedNotes.set(key, group);
+      }
+      const events = [...groupedNotes.values()].sort(
+        (left, right) =>
+          left.start - right.start ||
+          left.end - right.end ||
+          left.pitches[0] - right.pitches[0]
+      );
+      const lanes = [];
+      for (const event of events) {
+        let lane = lanes.find(item => item.end <= event.start);
+        if (!lane) {
+          lane = { end: 0, events: [] };
+          lanes.push(lane);
+        }
+        lane.events.push(event);
+        lane.end = event.end;
+      }
+
+      lanes.forEach((lane, laneIndex) => {
+        const className = `midi_track_${track.trackIndex + 1}_voice_${laneIndex + 1}`;
+        let cursorTick = 0;
+        for (const event of lane.events) {
+          if (event.start > cursorTick) {
+            output.push(
+              `snd("null","#${event.start - cursorTick}",null,class="${className}");`
+            );
+          }
+          const pitches = event.pitches
+            .sort((left, right) => left - right)
+            .map(midiToPitch);
+          const pitchText = pitches.length === 1
+            ? pitches[0]
+            : `fsn=[${pitches.join(",")}]`;
+          const volume = Math.round(event.velocity * 100 / 127);
+          output.push(
+            `snd("synth","#${event.end - event.start}",${pitchText},class="${className}",vol=${volume});`
+          );
+          cursorTick = event.end;
+          noteCount += event.pitches.length;
+        }
+      });
+    }
+
+    if (!noteCount) {
+      throw new SWSError(1, "MIDIError", "MIDI file contains no note events");
+    }
+    return output.join("\n");
+  }
 
   function midiToPitch(midi) {
     const names = [
@@ -5900,7 +6210,9 @@ input[type="color"] {
     state.audioContext = new AudioContextClass();
     await state.audioContext.resume();
 
+    state.playbackStarted = true;
     state.playing = true;
+    updateProjectInfo(playbackProject);
 
     if (DOM.playButton) DOM.playButton.disabled = true;
     if (DOM.stopButton) DOM.stopButton.disabled = false;
@@ -6261,6 +6573,7 @@ input[type="color"] {
     saveSs,
     playProject,
     stopPlayback,
+    midiToSs,
     ustToSs,
     state
   };
