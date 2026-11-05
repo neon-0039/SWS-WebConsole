@@ -293,12 +293,70 @@ input[type="color"] {
   background: rgba(33, 150, 243, .1);
 }
 
+.track-item.indentation-warning,
+.track-item.indentation-warning.selected {
+  border-color: rgba(255, 193, 7, .8);
+  border-left-color: #ffc107;
+  background: rgba(255, 193, 7, .08);
+}
+
+.track-item.has-error,
+.track-item.has-error.selected {
+  border-color: rgba(255, 107, 107, .85);
+  border-left-color: var(--error);
+  background: rgba(255, 107, 107, .1);
+}
+
+.track-name-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.track-warning {
+  flex: 0 0 auto;
+  color: #b77900;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.track-error {
+  flex: 0 0 auto;
+  color: var(--error);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+body.dark .track-warning {
+  color: #ffd166;
+}
+
 .track-dot {
   width: 11px;
   height: 11px;
   flex: 0 0 11px;
   border-radius: 50%;
   background: var(--track-default);
+}
+
+.track-color-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track-color-control input {
+  flex: 1;
+}
+
+.track-color-preview {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: #78909c;
 }
 
 .track-dot.main {
@@ -545,6 +603,11 @@ input[type="color"] {
   touch-action: manipulation;
 }
 
+#editorContent.python-syntax #highlightLayer code,
+#editorContent.python-syntax #codeEditor {
+  tab-size: 4;
+}
+
 #codeEditor::selection {
   background: rgba(33, 150, 243, .38);
   -webkit-text-fill-color: transparent;
@@ -598,6 +661,25 @@ input[type="color"] {
 
 .syn-text {
   color: var(--text);
+}
+
+.syn-tab {
+  background: rgba(255, 193, 7, .28);
+  box-shadow: inset 0 -1px 0 rgba(255, 193, 7, .8);
+}
+
+.syn-fullwidth-space {
+  background: rgba(255, 193, 7, .42);
+  box-shadow: inset 0 -1px 0 rgba(255, 193, 7, .9);
+}
+
+.indentation-warning {
+  color: #b77900;
+  font-weight: 700;
+}
+
+body.dark .indentation-warning {
+  color: #ffd166;
 }
 
 /* Compile / tempo strip */
@@ -1161,6 +1243,7 @@ input[type="color"] {
             </span>
           </div>
 
+          <span id="indentationWarning" class="indentation-warning" role="status" hidden></span>
           <span id="compileStatus">Not compiled</span>
         </footer>
       </section>
@@ -1225,6 +1308,11 @@ input[type="color"] {
     <p id="trackModalMessage" class="modal-message"></p>
     <label id="trackNameLabel" for="trackNameInput">Track / Class name</label>
     <input id="trackNameInput" type="text" placeholder="e.g. melody">
+    <label id="trackColorLabel" for="trackColorInput">Track color</label>
+    <div class="track-color-control">
+      <input id="trackColorInput" type="text" placeholder="e.g. tomato or #ff6347">
+      <span id="trackColorPreview" class="track-color-preview" aria-label="Color preview"></span>
+    </div>
 
     <div class="modal-actions">
       <button id="trackModalCancel" type="button">Cancel</button>
@@ -1233,20 +1321,42 @@ input[type="color"] {
   </div>
 </div>
 
-<!-- Plugin modal: retained as a future JavaScript integration point. -->
 <div id="pluginModal" class="modal-overlay" aria-hidden="true">
   <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="pluginModalTitle">
     <h3 id="pluginModalTitle">SWS Plugin</h3>
 
-    <input
-      id="pluginFileInput"
-      type="file"
-      accept=".js"
-    >
+    <div class="output-buttons" role="group" aria-label="Plugin category">
+      <button id="soundCategoryButton" class="primary" type="button" aria-pressed="true">Sound</button>
+      <button id="outputCategoryButton" type="button" aria-pressed="false">Output</button>
+    </div>
 
-    <button id="loadPluginButton" type="button">Load .js Plugin</button>
+    <section id="soundPluginSection" aria-labelledby="soundPluginTitle">
+      <h4 id="soundPluginTitle">Built-in instruments</h4>
+      <p>Use the built-in instruments with <code>snd(...)</code>.</p>
+      <div id="soundInstrumentList"></div>
+    </section>
 
-    <div id="pluginList" style="margin-top:14px;"></div>
+    <section id="outputPluginSection" aria-labelledby="outputPluginTitle" hidden>
+      <h4 id="outputPluginTitle">Synthesis engine</h4>
+      <p>Load a JavaScript synthesis engine for playback and WAV export.</p>
+      <input id="outputPluginFileInput" type="file" accept=".js">
+      <button id="loadOutputPluginButton" type="button">Load Output .js</button>
+      <button id="resetOutputPluginButton" type="button">Use built-in output</button>
+      <div id="outputPluginStatus" role="status" style="margin-top:8px;"></div>
+    </section>
+
+    <section aria-labelledby="swsPluginTitle">
+      <h4 id="swsPluginTitle">SWS Data Plugins</h4>
+      <input
+        id="pluginFileInput"
+        type="file"
+        accept=".js"
+      >
+
+      <button id="loadPluginButton" type="button">Load .js Plugin</button>
+
+      <div id="pluginList" style="margin-top:14px;"></div>
+    </section>
 
     <div class="modal-actions">
       <button id="pluginModalClose" type="button">Close</button>
@@ -1349,8 +1459,13 @@ input[type="color"] {
     "snd",
     "sleep",
     "sleepticks",
+    "dispin",
+    "console.log",
+    "print",
+    "number",
     "lp",
     "chips",
+    "syntax",
     "tempoconst",
     "newtempo",
     "key",
@@ -1359,7 +1474,13 @@ input[type="color"] {
   ];
 
   const keywordNames = [
+    "let",
+    "const",
+    "function",
     "class",
+    "if",
+    "else",
+    "elif",
     "fsn",
     "null",
     "Lyric"
@@ -1371,25 +1492,26 @@ input[type="color"] {
    * 文字列・コメント・通常トークンを順番に処理する。
    * 文字列内部の記号やコメント記号を誤認識しない。
    */
-  function highlightLine(line) {
+  function highlightLine(
+    line,
+    pythonMode = false,
+    jsMode = false,
+    jsCommentState = { inBlockComment: false }
+  ) {
     let html = "";
     let index = 0;
 
     while (index < line.length) {
       const char = line[index];
 
-      /*
-       * コメント
-       */
-      if (char === "<") {
-        const closeIndex = line.indexOf(">", index + 1);
-
-        if (closeIndex !== -1) {
-          const comment = line.slice(index, closeIndex + 1);
-          html += `<span class="syn-comment">${escapeHtml(comment)}</span>`;
-          index = closeIndex + 1;
-          continue;
-        }
+      if (jsMode && jsCommentState.inBlockComment) {
+        const closeIndex = line.indexOf("*/", index);
+        const end = closeIndex < 0 ? line.length : closeIndex + 2;
+        const comment = line.slice(index, end);
+        html += `<span class="syn-comment">${escapeHtml(comment)}</span>`;
+        index = end;
+        if (closeIndex >= 0) jsCommentState.inBlockComment = false;
+        continue;
       }
 
       /*
@@ -1414,6 +1536,44 @@ input[type="color"] {
         html += `<span class="syn-string">${escapeHtml(stringValue)}</span>`;
         index = end;
         continue;
+      }
+
+      if (jsMode && char === "/" && line[index + 1] === "/") {
+        html += `<span class="syn-comment">${escapeHtml(line.slice(index))}</span>`;
+        break;
+      }
+      if (jsMode && char === "/" && line[index + 1] === "*") {
+        const closeIndex = line.indexOf("*/", index + 2);
+        const end = closeIndex < 0 ? line.length : closeIndex + 2;
+        const comment = line.slice(index, end);
+        html += `<span class="syn-comment">${escapeHtml(comment)}</span>`;
+        index = end;
+        if (closeIndex < 0) jsCommentState.inBlockComment = true;
+        continue;
+      }
+
+      /*
+       * Legacy SWS comments.
+       */
+      if (char === "<") {
+        const closeIndex = line.indexOf(">", index + 1);
+
+        if (closeIndex !== -1) {
+          const comment = line.slice(index, closeIndex + 1);
+          html += `<span class="syn-comment">${escapeHtml(comment)}</span>`;
+          index = closeIndex + 1;
+          continue;
+        }
+      }
+
+      if (
+        pythonMode &&
+        char === "#" &&
+        !(/[A-Ga-g]/.test(line[index - 1] || "") &&
+          /\d/.test(line[index + 1] || ""))
+      ) {
+        html += `<span class="syn-comment">${escapeHtml(line.slice(index))}</span>`;
+        break;
       }
 
       /*
@@ -1497,9 +1657,27 @@ input[type="color"] {
    */
   function updateHighlight() {
     const lines = codeEditor.value.split("\n");
+    const firstStatement = codeEditor.value
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .find(line => (
+        line &&
+        !line.startsWith("//") &&
+        !line.startsWith("#") &&
+        !line.startsWith("<")
+      ));
+    const pythonMode =
+      /^syntax\s*=\s*"(?:py|python)"\s*;?$/i.test(firstStatement || "");
+    const jsMode = /^syntax\s*=\s*"js"\s*;?$/i.test(firstStatement || "");
+    const jsCommentState = { inBlockComment: false };
 
     highlightCode.innerHTML = lines
-      .map(highlightLine)
+      .map(line => highlightLine(
+        line,
+        pythonMode,
+        jsMode,
+        jsCommentState
+      ))
       .join("\n");
 
     /*
@@ -1626,6 +1804,9 @@ input[type="color"] {
     audioNodes: new Set(),
     timers: new Set(),
     plugins: new Map(),
+    outputPlugin: null,
+    trackErrors: new Map(),
+    trackColors: new Map(),
     errorLines: new Set(),
     consoleEntries: [],
     trackModalMode: null
@@ -1647,11 +1828,18 @@ input[type="color"] {
       "editorStatusDot", "tempoValue", "keyValue", "cursorValue",
       "compileStatus", "consoleOutput", "consoleTitle", "clearConsoleButton",
       "errorPanel", "errorLine", "errorType", "errorMessage",
+      "indentationWarning",
       "exportWavButton", "exportMidiButton", "exportUstButton",
       "exportSsButton", "pluginModal", "pluginFileInput",
       "loadPluginButton", "pluginList", "pluginModalClose",
+      "soundCategoryButton", "outputCategoryButton",
+      "soundPluginSection", "outputPluginSection", "soundInstrumentList",
+      "outputPluginFileInput",
+      "loadOutputPluginButton", "resetOutputPluginButton",
+      "outputPluginStatus",
       "trackModal", "trackModalTitle", "trackModalMessage",
       "trackNameLabel", "trackNameInput", "trackModalCancel",
+      "trackColorLabel", "trackColorInput", "trackColorPreview",
       "trackModalOk"
     ].forEach(id => {
       DOM[id] = $(id);
@@ -1836,6 +2024,7 @@ input[type="color"] {
 
   class Project {
     constructor() {
+      this.syntax = "Cpp";
       this.tempo = 120;
       this.key = "C";
       this.tempoMap = new TempoMap(120);
@@ -1843,6 +2032,7 @@ input[type="color"] {
       this.events = [];
       this.globalEvents = [];
       this.outputRequests = [];
+      this.consoleLogs = [];
       this.plugins = [];
       this.source = "";
       this.sourceLines = [];
@@ -1957,7 +2147,8 @@ input[type="color"] {
         type: "song",
         project: {
           tempo: this.tempoMap.segments[0]?.tempo || 120,
-          key: this.key
+          key: this.key,
+          tempo_map: this.tempoMap.segments.map(segment => ({ ...segment }))
         },
         events: this.events.map(event => event.toJSON())
       };
@@ -1977,6 +2168,24 @@ input[type="color"] {
       drum: "#00c853",
       synth: "#00bcd4"
     }[name] || "#78909c";
+  }
+
+  function isValidTrackColor(value) {
+    const color = String(value).trim();
+    const isHex = /^#(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/i
+      .test(color);
+    const isName = /^[a-z]+$/i.test(color);
+    return Boolean(
+      color &&
+      (isHex || isName) &&
+      globalThis.CSS?.supports?.("color", color)
+    );
+  }
+
+  function setTrackColor(track, value) {
+    const color = String(value).trim();
+    track.color = color;
+    state.trackColors.set(track.name, color);
   }
 
   function formatNumber(value) {
@@ -2195,6 +2404,373 @@ input[type="color"] {
     return match[1];
   }
 
+  function evaluateExpression(source, variables, line, syntax = "Cpp") {
+    const tokens = [];
+    let index = 0;
+    while (index < source.length) {
+      if (/\s/.test(source[index])) {
+        index++;
+        continue;
+      }
+
+      const rest = source.slice(index);
+      const operator = rest.match(/^(?:===|!==|==|!=|<=|>=|&&|\|\||\*\*|[()[\],.!<>+\-*\/%])/);
+      if (operator) {
+        tokens.push(operator[0]);
+        index += operator[0].length;
+        continue;
+      }
+
+      const number = rest.match(/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/);
+      if (number) {
+        tokens.push(Number(number[0]));
+        index += number[0].length;
+        continue;
+      }
+
+      if (source[index] === '"') {
+        let end = index + 1;
+        while (end < source.length) {
+          if (source[end] === '"' && source[end - 1] !== "\\") break;
+          end++;
+        }
+        if (end >= source.length) {
+          throw new SWSError(line, "SyntaxError", "unclosed string in expression");
+        }
+        tokens.push(parseQuoted(source.slice(index, end + 1), line, "string"));
+        index = end + 1;
+        continue;
+      }
+
+      const identifier = rest.match(/^[A-Za-z_][A-Za-z0-9_]*/);
+      if (identifier) {
+        tokens.push({ identifier: identifier[0] });
+        index += identifier[0].length;
+        continue;
+      }
+
+      throw new SWSError(
+        line,
+        "SyntaxError",
+        `unsupported expression token: ${source[index]}`
+      );
+    }
+
+    const precedence = {
+      "||": 1,
+      "&&": 2,
+      "==": 3,
+      "===": 3,
+      "!=": 3,
+      "!==": 3,
+      "<": 4,
+      "<=": 4,
+      ">": 4,
+      ">=": 4,
+      "+": 5,
+      "-": 5,
+      "*": 6,
+      "/": 6,
+      "%": 6
+    };
+    let cursor = 0;
+
+    const evaluateFunction = (name, args) => {
+      const arityError = () => {
+        throw new SWSError(
+          line,
+          "TypeError",
+          `${name}() received an invalid number of arguments`
+        );
+      };
+      const requireNumbers = minimum => {
+        if (args.length < minimum || args.some(value => typeof value !== "number")) {
+          throw new SWSError(
+            line,
+            "TypeError",
+            `${name}() requires at least ${minimum} numeric argument(s)`
+          );
+        }
+      };
+
+      switch (name) {
+        case "random":
+          if (args.length !== 0) arityError();
+          return Math.random();
+        case "floor":
+          if (args.length !== 1) arityError();
+          requireNumbers(1);
+          return Math.floor(args[0]);
+        case "round":
+          if (args.length !== 1) arityError();
+          requireNumbers(1);
+          if (syntax === "py" || syntax === "python") {
+            const lower = Math.floor(args[0]);
+            const fraction = args[0] - lower;
+            return fraction === 0.5
+              ? (lower % 2 === 0 ? lower : lower + 1)
+              : Math.round(args[0]);
+          }
+          return syntax === "Cpp"
+            ? Math.sign(args[0]) * Math.floor(Math.abs(args[0]) + 0.5)
+            : Math.floor(args[0] + 0.5);
+        case "max":
+        case "min":
+          requireNumbers(1);
+          return name === "max"
+            ? Math.max(...args)
+            : Math.min(...args);
+        default:
+          throw new SWSError(
+            line,
+            "NameError",
+            `function '${name}' is not available in ${syntax} syntax`
+          );
+      }
+    };
+
+    const parseFunctionCall = (name, namespace = null) => {
+      let qualifiedName = name;
+      if (namespace) {
+        if (
+          syntax === "JS" &&
+          namespace === "Math" &&
+          ["random", "floor", "round", "max", "min"].includes(name)
+        ) {
+          qualifiedName = name;
+        } else if (
+          (syntax === "py" || syntax === "python") &&
+          ((namespace === "math" && name === "floor") ||
+           (namespace === "random" && name === "random"))
+        ) {
+          qualifiedName = name;
+        } else {
+          throw new SWSError(
+            line,
+            "NameError",
+            `module '${namespace}' is not available in ${syntax} syntax`
+          );
+        }
+      } else if (
+        syntax === "JS" ||
+        (syntax === "py" || syntax === "python") &&
+          (name === "floor" || name === "random")
+      ) {
+        throw new SWSError(
+          line,
+          "NameError",
+          `function '${name}' is not available in ${syntax} syntax`
+        );
+      }
+
+      cursor++;
+      const args = [];
+      if (tokens[cursor] !== ")") {
+        while (true) {
+          args.push(parseBinary(1));
+          if (tokens[cursor] !== ",") break;
+          cursor++;
+        }
+      }
+      if (tokens[cursor++] !== ")") {
+        throw new SWSError(line, "SyntaxError", "unclosed function call");
+      }
+      return evaluateFunction(qualifiedName, args);
+    };
+
+    const parsePrimary = () => {
+      const token = tokens[cursor++];
+      if (token === undefined) {
+        throw new SWSError(line, "SyntaxError", "incomplete expression");
+      }
+      let value;
+      if (token === "(") {
+        value = parseBinary(1);
+        if (tokens[cursor++] !== ")") {
+          throw new SWSError(line, "SyntaxError", "unclosed expression parenthesis");
+        }
+      } else if (token === "[") {
+        value = [];
+        if (tokens[cursor] !== "]") {
+          while (true) {
+            value.push(parseBinary(1));
+            if (tokens[cursor] !== ",") break;
+            cursor++;
+            if (tokens[cursor] === "]") break;
+          }
+        }
+        if (tokens[cursor++] !== "]") {
+          throw new SWSError(line, "SyntaxError", "unclosed array literal");
+        }
+      } else if (typeof token === "number" || typeof token === "string") {
+        value = token;
+      } else if (token.identifier) {
+        const name = token.identifier;
+        if (name === "true") value = true;
+        else if (name === "false") value = false;
+        else if (name === "null") value = null;
+        else if (tokens[cursor] === ".") {
+          cursor++;
+          const member = tokens[cursor++];
+          if (!member?.identifier || tokens[cursor] !== "(") {
+            throw new SWSError(line, "SyntaxError", "invalid function call");
+          }
+          value = parseFunctionCall(member.identifier, name);
+        } else if (tokens[cursor] === "(") {
+          value = parseFunctionCall(name);
+        } else {
+          if (!variables.has(name)) {
+            throw new SWSError(line, "NameError", `variable '${name}' is not defined`);
+          }
+          value = variables.get(name);
+        }
+      } else {
+        throw new SWSError(line, "SyntaxError", "invalid expression");
+      }
+
+      while (tokens[cursor] === "[") {
+        cursor++;
+        const arrayIndex = parseBinary(1);
+        if (tokens[cursor++] !== "]") {
+          throw new SWSError(line, "SyntaxError", "unclosed array index");
+        }
+        if (!Array.isArray(value)) {
+          throw new SWSError(line, "TypeError", "array indexing requires an array");
+        }
+        if (!Number.isInteger(arrayIndex) || arrayIndex < 0 ||
+            arrayIndex >= value.length) {
+          throw new SWSError(line, "IndexError", `array index out of range: ${arrayIndex}`);
+        }
+        value = value[arrayIndex];
+      }
+      return value;
+    };
+
+    const parsePower = () => {
+      const left = parsePrimary();
+      if (tokens[cursor] !== "**") return left;
+      cursor++;
+      const right = parseUnary();
+      if (typeof left !== "number" || typeof right !== "number") {
+        throw new SWSError(line, "TypeError", "arithmetic requires numbers");
+      }
+      return left ** right;
+    };
+
+    const parseUnary = () => {
+      const token = tokens[cursor];
+      if (token !== "!" && token !== "-" && token !== "+") {
+        return parsePower();
+      }
+
+      cursor++;
+      const value = parseUnary();
+      if (token === "!") return !value;
+      if (typeof value !== "number") {
+        throw new SWSError(line, "TypeError", "numeric unary operator requires a number");
+      }
+      return token === "-" ? -value : value;
+    };
+
+    const parseBinary = minimumPrecedence => {
+      let left = parseUnary();
+      while (cursor < tokens.length) {
+        const operator = tokens[cursor];
+        const operatorPrecedence = precedence[operator];
+        if (operatorPrecedence === undefined ||
+            operatorPrecedence < minimumPrecedence) break;
+        cursor++;
+        const right = parseBinary(operatorPrecedence + 1);
+        switch (operator) {
+          case "||": left = Boolean(left || right); break;
+          case "&&": left = Boolean(left && right); break;
+          case "==":
+            left = left === right ||
+              (left !== null && right !== null && left == right);
+            break;
+          case "===": left = left === right; break;
+          case "!=":
+            left = !(left === right ||
+              (left !== null && right !== null && left == right));
+            break;
+          case "!==": left = left !== right; break;
+          case "<": left = left < right; break;
+          case "<=": left = left <= right; break;
+          case ">": left = left > right; break;
+          case ">=": left = left >= right; break;
+          case "+":
+            if (typeof left === "number" && typeof right === "number") {
+              left += right;
+            } else {
+              left = String(left) + String(right);
+            }
+            break;
+          case "-":
+          case "*":
+          case "/":
+          case "%":
+            if (typeof left !== "number" || typeof right !== "number") {
+              throw new SWSError(line, "TypeError", "arithmetic requires numbers");
+            }
+            left = operator === "-"
+              ? left - right
+              : operator === "*"
+                ? left * right
+                : operator === "/"
+                  ? left / right
+                  : left % right;
+            break;
+        }
+      }
+      return left;
+    };
+
+    if (!tokens.length) {
+      throw new SWSError(line, "SyntaxError", "condition must not be empty");
+    }
+    const result = parseBinary(1);
+    if (cursor !== tokens.length) {
+      throw new SWSError(line, "SyntaxError", "unexpected token in expression");
+    }
+    return result;
+  }
+
+  function formatConsoleOutput(values) {
+    if (!values.length) return "";
+    if (typeof values[0] !== "string") {
+      return values.map(value => String(value)).join(" ");
+    }
+
+    let argumentIndex = 1;
+    const formatted = values[0].replace(/%[sdifocO%]/g, placeholder => {
+      if (placeholder === "%%") return "%";
+      if (argumentIndex >= values.length) return placeholder;
+
+      const value = values[argumentIndex++];
+      switch (placeholder) {
+        case "%s":
+        case "%o":
+        case "%O":
+          return String(value);
+        case "%d":
+          return String(Number(value));
+        case "%i":
+          return String(Number.parseInt(String(value), 10));
+        case "%f":
+          return String(Number.parseFloat(String(value)));
+        case "%c":
+          return "";
+        default:
+          return placeholder;
+      }
+    });
+
+    return [
+      formatted,
+      ...values.slice(argumentIndex).map(value => String(value))
+    ].join(" ");
+  }
+
   function findMatching(text, openIndex, openChar, closeChar) {
     if (openIndex < 0) return -1;
 
@@ -2340,7 +2916,13 @@ input[type="color"] {
         continue;
       }
 
-      if (!inComment && ch === "<") {
+      const previousToken = result.match(/([A-Za-z0-9_)\]"])[ \t]*$/);
+      if (
+        !inComment &&
+        ch === "<" &&
+        source[i + 1] !== "=" &&
+        !previousToken
+      ) {
         inComment = true;
         result += " ";
         continue;
@@ -2378,12 +2960,319 @@ input[type="color"] {
     return result;
   }
 
+  function removeJsComments(source, strict = true) {
+    let result = "";
+    let inString = false;
+    let inBlockComment = false;
+    let line = 1;
+
+    for (let index = 0; index < source.length; index++) {
+      const character = source[index];
+      const next = source[index + 1];
+
+      if (character === "\n") line++;
+      if (!inBlockComment && character === '"' && source[index - 1] !== "\\") {
+        inString = !inString;
+        result += character;
+        continue;
+      }
+
+      if (inString) {
+        result += character;
+        continue;
+      }
+
+      if (!inBlockComment && character === "/" && next === "/") {
+        result += "  ";
+        index++;
+        while (
+          index + 1 < source.length &&
+          source[index + 1] !== "\n" &&
+          source[index + 1] !== "\r"
+        ) {
+          result += " ";
+          index++;
+        }
+        continue;
+      }
+
+      if (!inBlockComment && character === "/" && next === "*") {
+        inBlockComment = true;
+        result += "  ";
+        index++;
+        continue;
+      }
+
+      if (inBlockComment && character === "*" && next === "/") {
+        inBlockComment = false;
+        result += "  ";
+        index++;
+        continue;
+      }
+
+      result += inBlockComment && character !== "\n" && character !== "\r"
+        ? " "
+        : character;
+    }
+
+    if (inBlockComment && strict) {
+      throw new SWSError(
+        line,
+        "SyntaxError",
+        "unclosed JavaScript block comment"
+      );
+    }
+
+    return result;
+  }
+
+  function removePythonComments(source) {
+    let result = "";
+    let inString = false;
+
+    for (let index = 0; index < source.length; index++) {
+      const character = source[index];
+      if (character === '"' && source[index - 1] !== "\\") {
+        inString = !inString;
+        result += character;
+        continue;
+      }
+
+      const isSharpPitch =
+        character === "#" &&
+        /[A-Ga-g]/.test(source[index - 1] || "") &&
+        /\d/.test(source[index + 1] || "");
+      let previousCodeCharacter = index - 1;
+      while (
+        previousCodeCharacter >= 0 &&
+        /\s/.test(source[previousCodeCharacter])
+      ) {
+        previousCodeCharacter--;
+      }
+      const isTickVariable =
+        character === "#" &&
+        source[index + 1] === ":" &&
+        /[,(]/.test(source[previousCodeCharacter] || "") &&
+        /^[A-Za-z_][A-Za-z0-9_]*/.test(source.slice(index + 2));
+      if (!inString && character === "#" && !isSharpPitch && !isTickVariable) {
+        while (
+          index < source.length &&
+          source[index] !== "\n" &&
+          source[index] !== "\r"
+        ) {
+          result += " ";
+          index++;
+        }
+        if (index < source.length) {
+          result += source[index];
+          if (
+            source[index] === "\r" &&
+            source[index + 1] === "\n"
+          ) {
+            result += source[index + 1];
+            index++;
+          }
+        }
+        continue;
+      }
+
+      result += character;
+    }
+
+    return result;
+  }
+
+  function pythonSyntaxSource(source) {
+    const commentStrippedSource = removePythonComments(String(source));
+    const lines = commentStrippedSource.split(/\r\n?|\n/);
+    const cleanLines = removeComments(commentStrippedSource).split(/\r\n?|\n/);
+    const converted = [];
+    const lineMap = [];
+    let sourceOffset = 0;
+    let generatedOffset = 0;
+    const indentation = [];
+
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index];
+      if (!cleanLines[index].trim()) {
+        converted.push(line);
+        const generatedLength = line.length;
+        lineMap.push({
+          sourceStart: sourceOffset,
+          sourceLength: line.length,
+          generatedStart: generatedOffset,
+          generatedLength
+        });
+        generatedOffset += generatedLength;
+        sourceOffset += line.length;
+        if (index < lines.length - 1) {
+          const newlineLength =
+            commentStrippedSource.slice(sourceOffset, sourceOffset + 2) === "\r\n" ? 2 : 1;
+          sourceOffset += newlineLength;
+          generatedOffset++;
+        }
+        continue;
+      }
+
+      const indentText = line.match(/^[ \t\u3000]*/)[0];
+      const indent = indentText
+        .replace(/[\t\u3000]/g, "    ")
+        .length;
+      if (indent % 4 !== 0) {
+        throw new SWSError(
+          index + 1,
+          "IndentationError",
+          "Python-style indentation must use 4-space or tab steps"
+        );
+      }
+
+      let closingBlocks = 0;
+      while (
+        indentation.length &&
+        indent < indentation[indentation.length - 1]
+      ) {
+        indentation.pop();
+        closingBlocks++;
+      }
+      const expectedIndent = indentation.length
+        ? indentation[indentation.length - 1]
+        : 0;
+      if (indent !== expectedIndent) {
+        throw new SWSError(
+          index + 1,
+          "IndentationError",
+          "unexpected indentation; indent each block by 4 spaces or tabs"
+        );
+      }
+
+      const statement = cleanLines[index].slice(indentText.length).trimEnd();
+      const loop = statement.match(/^lp ([1-9]\d*):$/);
+      const chip = statement.match(/^chips ([A-Za-z_][A-Za-z0-9_]*):$/);
+      const ifBlock = statement.match(/^if (.+):$/);
+      const elifBlock = statement.match(/^elif (.+):$/);
+      const elseBlock = statement === "else:";
+      let convertedStatement;
+      if (loop) {
+        convertedStatement = `lp(${loop[1]}){`;
+        indentation.push(indent + 4);
+      } else if (chip) {
+        convertedStatement = `chips ${chip[1]}(){`;
+        indentation.push(indent + 4);
+      } else if (ifBlock) {
+        convertedStatement = `if (${ifBlock[1]}){`;
+        indentation.push(indent + 4);
+      } else if (elifBlock) {
+        convertedStatement = `else if (${elifBlock[1]}){`;
+        indentation.push(indent + 4);
+      } else if (elseBlock) {
+        convertedStatement = "else{";
+        indentation.push(indent + 4);
+      } else {
+        if (/^(?:lp|chips)\b/.test(statement) &&
+            (statement.endsWith(":") || /^(?:lp|chips) /.test(statement))) {
+          throw new SWSError(
+            index + 1,
+            "SyntaxError",
+            "expected 'lp count:' or 'chips name:' with exactly one space"
+          );
+        }
+        convertedStatement = statement;
+        if (!/^(?:<[\s\S]*>)$/.test(statement) && !statement.endsWith(";")) {
+          convertedStatement += ";";
+        }
+      }
+      const prefix = `${"}".repeat(closingBlocks)}${" ".repeat(indent)}`;
+      const convertedLine = `${prefix}${convertedStatement}`;
+      converted.push(convertedLine);
+      lineMap.push({
+        sourceStart: sourceOffset,
+        sourceLength: line.length,
+        generatedStart: generatedOffset,
+        generatedLength: convertedLine.length,
+        generatedContentStart: prefix.length,
+        sourceContentStart: indentText.length
+      });
+      generatedOffset += convertedLine.length;
+      sourceOffset += line.length;
+      if (index < lines.length - 1) {
+        const newlineLength =
+          commentStrippedSource.slice(sourceOffset, sourceOffset + 2) === "\r\n" ? 2 : 1;
+        sourceOffset += newlineLength;
+        generatedOffset++;
+      }
+    }
+
+    if (indentation.length) {
+      converted[converted.length - 1] += "}".repeat(indentation.length);
+      lineMap[lineMap.length - 1].generatedLength += indentation.length;
+    }
+    const findMappedLine = (offset, startKey, lengthKey) => {
+      let low = 0;
+      let high = lineMap.length - 1;
+      while (low <= high) {
+        const middle = Math.floor((low + high) / 2);
+        const line = lineMap[middle];
+        const start = line[startKey];
+        if (offset < start) {
+          high = middle - 1;
+        } else if (offset > start + line[lengthKey]) {
+          low = middle + 1;
+        } else {
+          return line;
+        }
+      }
+      return lineMap[Math.max(0, Math.min(lineMap.length - 1, high))];
+    };
+    const toSourceOffset = offset => {
+      const line = findMappedLine(
+        offset,
+        "generatedStart",
+        "generatedLength"
+      );
+      const relativeOffset = Math.max(0, Math.min(
+        line.generatedLength,
+        offset - line.generatedStart
+      ));
+      if (relativeOffset <= (line.generatedContentStart || 0)) {
+        return line.sourceStart;
+      }
+      return line.sourceStart + Math.min(
+        line.sourceLength,
+        (line.sourceContentStart || 0) +
+          relativeOffset - (line.generatedContentStart || 0)
+      );
+    };
+    const toGeneratedOffset = offset => {
+      const line = findMappedLine(offset, "sourceStart", "sourceLength");
+      const relativeOffset = Math.max(0, Math.min(
+        line.sourceLength,
+        offset - line.sourceStart
+      ));
+      return line.generatedStart +
+        (line.generatedContentStart || 0) +
+        Math.max(0, relativeOffset - (line.sourceContentStart || 0));
+    };
+    return {
+      source: converted.join("\n"),
+      toSourceOffset,
+      toGeneratedOffset
+    };
+  }
+
   function countNewlines(text) {
     return (text.match(/\n/g) || []).length;
   }
 
-  function scanStructure(source, baseOffset = 0, baseLine = 1) {
-    const clean = removeComments(source);
+  function scanStructure(
+    source,
+    baseOffset = 0,
+    baseLine = 1,
+    allowNewlineStatements = false,
+    jsComments = false
+  ) {
+    const clean = removeComments(
+      jsComments ? removeJsComments(source) : source
+    );
     const statements = [];
 
     let buffer = "";
@@ -2492,6 +3381,29 @@ input[type="color"] {
         continue;
       }
 
+      if (
+        allowNewlineStatements &&
+        ch === "\n" &&
+        parentheses === 0 &&
+        brackets === 0
+      ) {
+        const text = buffer.trim();
+        if (text) {
+          statements.push({
+            type: "statement",
+            text,
+            line: startLine,
+            terminated: true,
+            start: baseOffset + clean.indexOf(text, bufferStart),
+            end: baseOffset + i
+          });
+        }
+        buffer = "";
+        bufferStart = i + 1;
+        startLine = line;
+        continue;
+      }
+
       buffer += ch;
     }
 
@@ -2504,7 +3416,7 @@ input[type="color"] {
         line: startLine,
         start: baseOffset + clean.indexOf(trailing, bufferStart),
         end: baseOffset + clean.length,
-        terminated: false
+        terminated: allowNewlineStatements
       });
     }
 
@@ -2888,6 +3800,13 @@ input[type="color"] {
       this.project = new Project();
       this.chips = new Map();
       this.chipStack = new Set();
+      this.variables = new Map();
+      this.constantVariables = new Set();
+      this.pythonSource = null;
+      this.pythonSourceMap = null;
+      this.allowNewlineStatements = false;
+      this.hasSeenStatement = false;
+      this.syntaxSet = false;
       this.tempoconstSet = false;
       this.mainCursor = 0;
       this.currentUstClass = null;
@@ -2898,10 +3817,57 @@ input[type="color"] {
     }
 
     compile() {
-      this.cleanSource = removeComments(this.source);
-      const statements = scanStructure(this.source);
+      const firstStatement = removePythonComments(
+        removeJsComments(removeComments(this.source))
+      )
+        .split(/\r\n?|\n/)
+        .map(line => line.trim())
+        .find(Boolean);
+      const pythonSyntax = firstStatement?.match(
+        /^syntax\s*=\s*"(py|python)"\s*;?$/i
+      );
+      const selectedSyntax = firstStatement?.match(
+        /^syntax\s*=\s*"(js|cpp)"\s*;?$/i
+      );
+      if (selectedSyntax) {
+        this.allowNewlineStatements =
+          selectedSyntax[1].toLowerCase() === "js";
+        this.project.syntax = selectedSyntax[1].toLowerCase() === "js"
+          ? "JS"
+          : "Cpp";
+      }
+      if (pythonSyntax) {
+        this.pythonSource = this.source;
+        this.pythonSourceMap = pythonSyntaxSource(this.source);
+        this.source = this.pythonSourceMap.source;
+        this.trackRanges = this.trackRanges.map(range => ({
+          ...range,
+          start: this.pythonSourceMap.toGeneratedOffset(range.start),
+          end: this.pythonSourceMap.toGeneratedOffset(range.end)
+        }));
+      }
 
-      for (const statement of statements) {
+      this.cleanSource = removeComments(
+        this.allowNewlineStatements
+          ? removeJsComments(this.source)
+          : this.source
+      );
+      const statements = scanStructure(
+        this.source,
+        0,
+        1,
+        this.allowNewlineStatements,
+        this.allowNewlineStatements
+      );
+
+      for (let index = 0; index < statements.length;) {
+        const conditional = this.collectConditionalChain(statements, index);
+        const statement = conditional
+          ? {
+            ...statements[index],
+            end: statements[index + conditional.count - 1].end
+          }
+          : statements[index];
         const eventStart = this.project.events.length;
         const sourceStatementCounts = new Map(
           this.project.tracks.map(track => [
@@ -2914,22 +3880,29 @@ input[type="color"] {
           return statement.start >= range.start &&
             statement.start < range.end;
         })?.trackName || null;
-        this.compileStatement(statement);
+        if (conditional) {
+          this.compileConditionalChain(conditional);
+        } else {
+          this.compileStatement(statement);
+        }
         this.addSourceSegments(
           statement,
           this.project.events.slice(eventStart),
           sourceStatementCounts
         );
+        index += conditional?.count || 1;
       }
       if (!this.project.tracks.length && !this.hasTrackContext) {
         this.project.ensureTrack("default");
       }
       this.finishTrackCode();
+      if (this.pythonSourceMap) this.remapPythonSourceSegments();
 
       this.validateSlurs();
 
-      this.project.source = this.source;
-      this.project.sourceLines = this.source.split(/\r?\n/);
+      const source = this.pythonSource ?? this.source;
+      this.project.source = source;
+      this.project.sourceLines = source.split(/\r?\n/);
 
       this.project.events.sort((a, b) => {
         return a.sourceOrder - b.sourceOrder || a.line - b.line;
@@ -2942,6 +3915,63 @@ input[type="color"] {
       }
 
       return this.project;
+    }
+
+    remapPythonSourceSegments() {
+      const source = this.pythonSource;
+      const mapOffset = this.pythonSourceMap.toSourceOffset;
+      for (const segment of this.project.sourceSegments) {
+        const generatedStart = segment.start;
+        const generatedEnd = segment.end;
+        const start = mapOffset(generatedStart);
+        const end = Math.max(start, mapOffset(generatedEnd));
+
+        if (segment.type === "split") {
+          const generatedSegment = this.source.slice(
+            generatedStart,
+            generatedEnd
+          );
+          let searchFrom = 0;
+          for (const part of segment.parts) {
+            const partStart = generatedSegment.indexOf(
+              part.code,
+              searchFrom
+            );
+            if (partStart < 0) continue;
+            const partEnd = partStart + part.code.length;
+            part.code = source.slice(
+              mapOffset(generatedStart + partStart),
+              mapOffset(generatedStart + partEnd)
+            );
+            searchFrom = partEnd;
+          }
+        } else {
+          segment.code = source.slice(start, end);
+        }
+
+        segment.start = start;
+        segment.end = end;
+      }
+
+      for (const track of this.project.tracks) {
+        track.code = this.project.sourceSegments
+          .flatMap(segment => {
+            if (
+              segment.type === "track" &&
+              segment.trackName === track.name
+            ) {
+              return [segment.code];
+            }
+            if (segment.type === "split") {
+              return segment.parts
+                .filter(part => part.trackName === track.name)
+                .map(part => part.code);
+            }
+            return [];
+          })
+          .join("\n")
+          .trim();
+      }
     }
 
     addSourceSegments(statement, events, previousCounts) {
@@ -2969,6 +3999,9 @@ input[type="color"] {
         /^snd\s*\(/i.test(statementText) ||
         /^sleep(?:Ticks)?\s*\(/i.test(statementText) ||
         /^chips\s*\(/i.test(statementText) ||
+        /^if\s*\(/i.test(statementText) ||
+        (this.allowNewlineStatements &&
+          /^[A-Za-z_][A-Za-z0-9_]*\s*\([\s\S]*\)$/.test(statementText)) ||
         /^lp\s*\(/i.test(statementText);
 
       if (isTrackStatement && owners.size === 1) {
@@ -3112,9 +4145,97 @@ input[type="color"] {
       return statement;
     }
 
+    parseConditionalHeader(header, line) {
+      const text = header.trim();
+      const match = text.match(/^if\s*\(([\s\S]*)\)\s*$/);
+      if (!match) return null;
+      return {
+        condition: match[1].trim(),
+        line
+      };
+    }
+
+    collectConditionalChain(statements, startIndex) {
+      const first = statements[startIndex];
+      if (first?.type !== "block") return null;
+      const firstBranch = this.parseConditionalHeader(first.header, first.line);
+      if (!firstBranch) return null;
+
+      const branches = [{
+        ...firstBranch,
+        statement: first
+      }];
+      let count = 1;
+      while (startIndex + count < statements.length) {
+        const next = statements[startIndex + count];
+        if (next.type !== "block") break;
+        const header = next.header.trim();
+        const elseIf = header.match(/^else\s+if\s*\(([\s\S]*)\)\s*$/);
+        if (elseIf) {
+          branches.push({
+            condition: elseIf[1].trim(),
+            line: next.line,
+            statement: next
+          });
+          count++;
+          continue;
+        }
+        if (header === "else") {
+          branches.push({
+            condition: null,
+            line: next.line,
+            statement: next
+          });
+          count++;
+        }
+        break;
+      }
+
+      return { branches, count };
+    }
+
+    compileConditionalChain(conditional) {
+      this.hasSeenStatement = true;
+      for (const branch of conditional.branches) {
+        if (
+          branch.condition === null ||
+          Boolean(evaluateExpression(
+            branch.condition,
+            this.variables,
+            branch.line,
+            this.project.syntax
+          ))
+        ) {
+          const body = scanStructure(
+            branch.statement.body,
+            branch.statement.bodyStart,
+            branch.statement.bodyLine,
+            this.allowNewlineStatements,
+            this.allowNewlineStatements
+          );
+          this.compileStatementSequence(body);
+          break;
+        }
+      }
+    }
+
+    compileStatementSequence(statements) {
+      for (let index = 0; index < statements.length;) {
+        const conditional = this.collectConditionalChain(statements, index);
+        if (conditional) {
+          this.compileConditionalChain(conditional);
+          index += conditional.count;
+          continue;
+        }
+        this.compileStatement(statements[index]);
+        index++;
+      }
+    }
+
     compileStatement(statement) {
       this.currentStatement = statement;
       if (statement.type === "block") {
+        this.hasSeenStatement = true;
         this.compileBlock(statement);
         return;
       }
@@ -3140,6 +4261,42 @@ input[type="color"] {
         );
       }
 
+      if (/^syntax\s*=/.test(text)) {
+        if (this.syntaxSet) {
+          this.compileSyntax(text, line);
+          return;
+        }
+        if (this.hasSeenStatement) {
+          throw new SWSError(
+            line,
+            "SyntaxError",
+            "syntax declaration must be the first statement"
+          );
+        }
+        this.compileSyntax(text, line);
+        this.hasSeenStatement = true;
+        return;
+      }
+
+      this.hasSeenStatement = true;
+
+      const arrayAssignment = text.match(
+        /^([A-Za-z_][A-Za-z0-9_]*)\s*\[([\s\S]+)\]\s*=(?!=)\s*([\s\S]+)$/
+      );
+      if (arrayAssignment) {
+        this.compileArrayAssignment(
+          arrayAssignment[1],
+          arrayAssignment[2],
+          arrayAssignment[3],
+          line
+        );
+        return;
+      }
+
+      if (this.compileArrayMethod(text, line)) {
+        return;
+      }
+
       if (/^tempoconst\s*=/.test(text)) {
         this.compileTempoConst(text, line);
         return;
@@ -3152,6 +4309,18 @@ input[type="color"] {
 
       if (/^key\s*=/.test(text)) {
         this.compileKey(text, line);
+        return;
+      }
+
+      const variableDeclaration = this.parseVariableDeclaration(text, line);
+      if (variableDeclaration) {
+        this.compileVariableDeclaration(
+          variableDeclaration.name,
+          variableDeclaration.expression,
+          line,
+          variableDeclaration.constant,
+          variableDeclaration.reassign
+        );
         return;
       }
 
@@ -3170,8 +4339,50 @@ input[type="color"] {
         return;
       }
 
+      const consoleOutput = text.match(
+        /^(dispin|console\.log|print)\s*\(/
+      );
+      if (consoleOutput) {
+        const expectedCommand = {
+          Cpp: "dispin",
+          JS: "console.log",
+          py: "print",
+          python: "print"
+        }[this.project.syntax];
+        if (consoleOutput[1] !== expectedCommand) {
+          throw new SWSError(
+            line,
+            "SyntaxError",
+            `${consoleOutput[1]}() is not available in ${this.project.syntax} syntax`
+          );
+        }
+        this.compileConsoleOutput(
+          text,
+          consoleOutput[1],
+          line
+        );
+        return;
+      }
+
       if (/^chips\s*\(/.test(text)) {
         this.compileChipsCall(text, line);
+        return;
+      }
+
+      const functionCall = text.match(
+        /^([A-Za-z_][A-Za-z0-9_]*)\s*\(([\s\S]*)\)$/
+      );
+      if (
+        this.allowNewlineStatements &&
+        functionCall &&
+        !["if", "while", "for", "switch"].includes(functionCall[1])
+      ) {
+        this.compileFunctionCall(
+          functionCall[1],
+          line,
+          text,
+          parseCallArguments(text, functionCall[1], line)
+        );
         return;
       }
 
@@ -3192,32 +4403,425 @@ input[type="color"] {
       );
     }
 
+    compileConsoleOutput(text, command, line) {
+      const args = parseCallArguments(text, command, line);
+      const values = args.map(argument =>
+        evaluateExpression(
+          argument,
+          this.variables,
+          line,
+          this.project.syntax
+        )
+      );
+      this.project.consoleLogs.push({
+        line,
+        message: formatConsoleOutput(values)
+      });
+    }
+
+    compileArrayAssignment(name, indexExpression, valueExpression, line) {
+      if (name === "num") {
+        throw new SWSError(
+          line,
+          "SyntaxError",
+          "'num' is reserved for the current lp iteration"
+        );
+      }
+      if (
+        this.project.syntax === "Cpp" &&
+        this.constantVariables.has(name)
+      ) {
+        throw new SWSError(
+          line,
+          "TypeError",
+          `cannot modify constant array '${name}'`
+        );
+      }
+      if (!this.variables.has(name)) {
+        throw new SWSError(line, "NameError", `variable '${name}' is not defined`);
+      }
+
+      const array = this.variables.get(name);
+      if (!Array.isArray(array)) {
+        throw new SWSError(line, "TypeError", `'${name}' is not an array`);
+      }
+      const arrayIndex = evaluateExpression(
+        indexExpression,
+        this.variables,
+        line,
+        this.project.syntax
+      );
+      if (!Number.isInteger(arrayIndex) || arrayIndex < 0 ||
+          arrayIndex >= array.length) {
+        throw new SWSError(line, "IndexError", `array index out of range: ${arrayIndex}`);
+      }
+
+      array[arrayIndex] = evaluateExpression(
+        valueExpression,
+        this.variables,
+        line,
+        this.project.syntax
+      );
+    }
+
+    compileArrayMethod(text, line) {
+      const call = text.match(
+        /^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\(([\s\S]*)\)$/
+      );
+      if (!call) return false;
+
+      const [, name, method] = call;
+      const syntax = this.project.syntax;
+      const supportedMethods = {
+        Cpp: new Set([
+          "topin", "bottomin", "topshift", "bottomshift",
+          "pointshift", "pointin"
+        ]),
+        JS: new Set(["push", "unshift", "pop", "shift", "splice"]),
+        py: new Set(["append", "insert", "pop", "remove", "extend", "clear", "reverse"]),
+        python: new Set(["append", "insert", "pop", "remove", "extend", "clear", "reverse"])
+      }[syntax];
+      if (!supportedMethods.has(method)) return false;
+      if (!this.variables.has(name)) {
+        throw new SWSError(line, "NameError", `variable '${name}' is not defined`);
+      }
+      if (
+        syntax === "Cpp" &&
+        this.constantVariables.has(name)
+      ) {
+        throw new SWSError(
+          line,
+          "TypeError",
+          `cannot modify constant array '${name}'`
+        );
+      }
+
+      const array = this.variables.get(name);
+      if (!Array.isArray(array)) {
+        throw new SWSError(line, "TypeError", `'${name}' is not an array`);
+      }
+      const rawArguments = call[3].trim();
+      const args = rawArguments
+        ? splitTopLevel(rawArguments).map(argument =>
+          evaluateExpression(
+            argument,
+            this.variables,
+            line,
+            this.project.syntax
+          )
+        )
+        : [];
+      const requireArity = (minimum, maximum = minimum) => {
+        if (args.length < minimum || args.length > maximum) {
+          throw new SWSError(
+            line,
+            "TypeError",
+            `${method}() expects ${minimum === maximum
+              ? minimum
+              : `${minimum} to ${maximum}`} argument(s), got ${args.length}`
+          );
+        }
+      };
+      const requireIndex = (index, allowEnd = false) => {
+        const upperBound = allowEnd ? array.length : array.length - 1;
+        if (!Number.isInteger(index) || index < 0 || index > upperBound) {
+          throw new SWSError(
+            line,
+            "IndexError",
+            `array index out of range: ${index}`
+          );
+        }
+      };
+
+      if (syntax === "Cpp") {
+        if (method === "topin" || method === "bottomin") {
+          requireArity(1);
+          if (method === "topin") array.unshift(args[0]);
+          else array.push(args[0]);
+        } else if (method === "topshift" || method === "bottomshift") {
+          requireArity(0);
+          if (!array.length) {
+            throw new SWSError(line, "IndexError", "cannot remove from an empty array");
+          }
+          if (method === "topshift") array.shift();
+          else array.pop();
+        } else if (method === "pointshift") {
+          requireArity(1);
+          requireIndex(args[0]);
+          array.splice(args[0], 1);
+        } else {
+          requireArity(2);
+          requireIndex(args[0], true);
+          array.splice(args[0], 0, args[1]);
+        }
+        return true;
+      }
+
+      if (syntax === "JS") {
+        if (method === "push") {
+          array.push(...args);
+        } else if (method === "unshift") {
+          array.unshift(...args);
+        } else if (method === "pop" || method === "shift") {
+          requireArity(0);
+          array[method]();
+        } else {
+          if (args.length && !Number.isInteger(args[0])) {
+            throw new SWSError(line, "TypeError", "splice start must be an integer");
+          }
+          array.splice(...args);
+        }
+        return true;
+      }
+
+      if (method === "append") {
+        requireArity(1);
+        array.push(args[0]);
+      } else if (method === "insert") {
+        requireArity(2);
+        if (!Number.isInteger(args[0])) {
+          throw new SWSError(line, "TypeError", "insert index must be an integer");
+        }
+        const index = args[0] < 0
+          ? Math.max(array.length + args[0], 0)
+          : Math.min(args[0], array.length);
+        array.splice(index, 0, args[1]);
+      } else if (method === "pop") {
+        requireArity(0, 1);
+        if (!array.length) {
+          throw new SWSError(line, "IndexError", "pop from empty list");
+        }
+        const index = args.length ? args[0] : array.length - 1;
+        if (!Number.isInteger(index) || index < -array.length ||
+            index >= array.length) {
+          throw new SWSError(line, "IndexError", `pop index out of range: ${index}`);
+        }
+        array.splice(index < 0 ? array.length + index : index, 1);
+      } else if (method === "remove") {
+        requireArity(1);
+        const index = array.indexOf(args[0]);
+        if (index < 0) {
+          throw new SWSError(line, "ValueError", "value is not in list");
+        }
+        array.splice(index, 1);
+      } else if (method === "extend") {
+        requireArity(1);
+        if (!Array.isArray(args[0])) {
+          throw new SWSError(line, "TypeError", "extend() requires an array");
+        }
+        array.push(...args[0]);
+      } else if (method === "clear") {
+        requireArity(0);
+        array.length = 0;
+      } else {
+        requireArity(0);
+        array.reverse();
+      }
+      return true;
+    }
+
+    parseDurationExpression(expression, line) {
+      const text = expression.trim();
+      const tickVariable = text.match(/^#:\s*([A-Za-z_][A-Za-z0-9_]*)$/);
+      if (tickVariable) {
+        const name = tickVariable[1];
+        if (!this.variables.has(name)) {
+          throw new SWSError(line, "NameError", `variable '${name}' is not defined`);
+        }
+        const ticks = this.variables.get(name);
+        if (!Number.isSafeInteger(ticks) || ticks <= 0) {
+          throw new SWSError(
+            line,
+            "ValueError",
+            "tick length must be a positive safe integer"
+          );
+        }
+        return ticks / PPQ;
+      }
+
+      if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(text)) {
+        if (!this.variables.has(text)) {
+          throw new SWSError(line, "NameError", `variable '${text}' is not defined`);
+        }
+        return parseDuration(String(this.variables.get(text)), line);
+      }
+      return parseDuration(text, line);
+    }
+
+    parseVariableDeclaration(text, line) {
+      if (this.project.syntax === "JS") {
+        const declaration = text.match(
+          /^(let|const)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([\s\S]+)$/
+        );
+        if (declaration) {
+          return {
+            name: declaration[2],
+            expression: declaration[3],
+            constant: declaration[1] === "const",
+            reassign: false
+          };
+        }
+
+        const assignment = text.match(
+          /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([^=][\s\S]*)$/
+        );
+        if (assignment) {
+          return {
+            name: assignment[1],
+            expression: assignment[2],
+            constant: false,
+            reassign: true
+          };
+        }
+      } else if (this.project.syntax === "py" ||
+          this.project.syntax === "python") {
+        const assignment = text.match(
+          /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([^=][\s\S]*)$/
+        );
+        if (assignment) {
+          return {
+            name: assignment[1],
+            expression: assignment[2],
+            constant: false,
+            reassign: true
+          };
+        }
+      } else {
+        const declaration = text.match(
+          /^(number|const)\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([\s\S]+)\s*\)$/
+        );
+        if (declaration) {
+          return {
+            name: declaration[2],
+            expression: declaration[3],
+            constant: declaration[1] === "const",
+            reassign: false
+          };
+        }
+      }
+      return null;
+    }
+
+    compileVariableDeclaration(name, expression, line, constant, reassign) {
+      if (name === "num") {
+        throw new SWSError(
+          line,
+          "SyntaxError",
+          "'num' is reserved for the current lp iteration"
+        );
+      }
+      if (this.constantVariables.has(name)) {
+        throw new SWSError(
+          line,
+          "TypeError",
+          `cannot reassign constant '${name}'`
+        );
+      }
+      if (!reassign && this.variables.has(name)) {
+        throw new SWSError(
+          line,
+          "NameError",
+          `variable '${name}' is already declared`
+        );
+      }
+
+      const value = evaluateExpression(
+        expression,
+        this.variables,
+        line,
+        this.project.syntax
+      );
+      this.variables.set(name, value);
+      if (constant) this.constantVariables.add(name);
+    }
+
+    compileSyntax(text, line) {
+      if (this.syntaxSet) {
+        throw new SWSError(
+          line,
+          "ValueError",
+          "syntax can only be set once"
+        );
+      }
+
+      const syntax = parseAssignment(text, "syntax", line).toLowerCase();
+      if (
+        syntax !== "js" &&
+        syntax !== "cpp" &&
+        syntax !== "py" &&
+        syntax !== "python"
+      ) {
+        throw new SWSError(
+          line,
+          "ValueError",
+          `unsupported syntax: ${syntax}; expected "Cpp", "JS", "py" or "python"`
+        );
+      }
+
+      this.syntaxSet = true;
+      this.project.syntax = syntax === "js"
+        ? "JS"
+        : syntax === "cpp"
+          ? "Cpp"
+          : syntax;
+    }
+
     compileBlock(statement) {
       const header = statement.header.trim();
       const line = statement.line;
+      const functionMatch = this.allowNewlineStatements
+        ? header.match(
+            /^function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([\s\S]*)\)$/
+          )
+        : null;
 
-      const chipMatch = header.match(
-        /^chips\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*\)\s*$/
-      );
+      const chipMatch = functionMatch
+        ? [functionMatch[0], functionMatch[1], functionMatch[2]]
+        : header.match(
+          /^chips\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*\)\s*$/
+        );
 
       if (chipMatch) {
         const name = chipMatch[1];
+        const parameters = functionMatch
+          ? splitTopLevel(functionMatch[2]).map(parameter => parameter.trim()).filter(Boolean)
+          : [];
+        if (
+            parameters.some(parameter => !/^[A-Za-z_][A-Za-z0-9_]*$/.test(parameter)) ||
+            new Set(parameters).size !== parameters.length
+        ) {
+          throw new SWSError(
+            line,
+            "SyntaxError",
+            "function parameters must be unique variable names"
+          );
+        }
+        if (parameters.includes("num")) {
+          throw new SWSError(
+            line,
+            "SyntaxError",
+            "'num' is reserved and cannot be used as a function parameter"
+          );
+        }
 
         if (this.chips.has(name)) {
           throw new SWSError(
             line,
             "NameError",
-            `chips '${name}' is already declared`
+            `${functionMatch ? "function" : "chips"} '${name}' is already declared`
           );
         }
 
         this.chips.set(name, {
           name,
           line,
+          parameters,
           statements: scanStructure(
             statement.body,
             statement.bodyStart,
-            statement.bodyLine
+            statement.bodyLine,
+            this.allowNewlineStatements,
+            this.allowNewlineStatements
           )
         });
 
@@ -3242,25 +4846,38 @@ input[type="color"] {
         const body = scanStructure(
           statement.body,
           statement.bodyStart,
-          statement.bodyLine
+          statement.bodyLine,
+          this.allowNewlineStatements,
+          this.allowNewlineStatements
         );
         const previousExpansionTrack = this.expansionTrackName;
         const previousCurrentTrack = this.currentTrackName;
+        const hadPreviousNum = this.variables.has("num");
+        const previousNum = this.variables.get("num");
         this.expansionTrackName =
           this.statementTrackName || previousCurrentTrack;
         try {
           for (let i = 0; i < count; i++) {
-            for (const child of body) {
-              this.compileStatement(child);
-            }
+            this.variables.set("num", i + 1);
+            this.compileStatementSequence(body);
           }
           this.mainCursor = this.project.getTrack(previousCurrentTrack).cursor;
         } finally {
+          if (hadPreviousNum) this.variables.set("num", previousNum);
+          else this.variables.delete("num");
           this.expansionTrackName = previousExpansionTrack;
           this.currentTrackName = previousCurrentTrack;
         }
 
         return;
+      }
+
+      if (this.allowNewlineStatements && /^function\b/.test(header)) {
+        throw new SWSError(
+          line,
+          "SyntaxError",
+          "function declarations must use function name() {"
+        );
       }
 
       throw new SWSError(
@@ -3349,7 +4966,7 @@ input[type="color"] {
           this.statementTrackName ||
           this.currentTrackName
       );
-      const duration = parseDuration(args[0], line);
+      const duration = this.parseDurationExpression(args[0], line);
       track.cursor += duration;
       this.mainCursor = track.cursor;
       this.addTrackSourceStatement(
@@ -3475,11 +5092,28 @@ input[type="color"] {
         );
       }
 
-      if (!this.chips.has(name)) {
+      this.compileNamedFunction(name, line, text, "chips", args);
+    }
+
+    compileFunctionCall(name, line, text, args) {
+      this.compileNamedFunction(name, line, text, "function", args);
+    }
+
+    compileNamedFunction(name, line, text, kind, args = []) {
+      const label = kind === "function" ? "function" : "chips";
+      const definition = this.chips.get(name);
+      if (!definition) {
         throw new SWSError(
           line,
           "NameError",
-          `chips '${name}' is not declared yet`
+          `${label} '${name}' is not declared yet`
+        );
+      }
+      if (args.length !== definition.parameters.length) {
+        throw new SWSError(
+          line,
+          "TypeError",
+          `${label} '${name}' expects ${definition.parameters.length} argument(s), got ${args.length}`
         );
       }
 
@@ -3487,7 +5121,7 @@ input[type="color"] {
         throw new SWSError(
           line,
           "RecursionError",
-          `chips '${name}' has circular dependency`
+          `${label} '${name}' has circular dependency`
         );
       }
 
@@ -3497,6 +5131,26 @@ input[type="color"] {
         const previousExpansionTrack = this.expansionTrackName;
         const previousExpansionSourceRange = this.expansionSourceRange;
         const previousCurrentTrack = this.currentTrackName;
+        const previousVariables = this.variables;
+        const previousConstantVariables = this.constantVariables;
+        const variables = kind === "function"
+          ? new Map(previousVariables)
+          : new Map();
+        const constantVariables = new Set(previousConstantVariables);
+        definition.parameters.forEach((parameter, index) => {
+          constantVariables.delete(parameter);
+          variables.set(
+            parameter,
+            evaluateExpression(
+              args[index],
+              previousVariables,
+              line,
+              this.project.syntax
+            )
+          );
+        });
+        this.variables = variables;
+        this.constantVariables = constantVariables;
         this.expansionTrackName =
           previousExpansionTrack ||
           this.statementTrackName ||
@@ -3505,14 +5159,14 @@ input[type="color"] {
           this.expansionSourceRange = this.findSourceRange(text, line);
         }
         try {
-          for (const child of this.chips.get(name).statements) {
-            this.compileStatement(child);
-          }
+          this.compileStatementSequence(definition.statements);
         } finally {
           this.expansionTrackName = previousExpansionTrack;
           this.expansionSourceRange = previousExpansionSourceRange;
           this.currentTrackName = previousCurrentTrack;
           this.mainCursor = this.project.getTrack(previousCurrentTrack).cursor;
+          this.variables = previousVariables;
+          this.constantVariables = previousConstantVariables;
         }
       } finally {
         this.chipStack.delete(name);
@@ -3572,7 +5226,7 @@ input[type="color"] {
         );
       }
 
-      const duration = parseDuration(parts[1], line);
+      const duration = this.parseDurationExpression(parts[1], line);
       const parsed = parsePitchAndAttributes(
         parts[2],
         this.project.key,
@@ -3844,9 +5498,20 @@ input[type="color"] {
   }
 
   function findMissingSemicolonLines(source) {
-    const clean = removeCommentsForHighlight(source);
+    const sourceWithoutAngleComments = removeCommentsForHighlight(source);
+    const clean = removeJsComments(sourceWithoutAngleComments, false);
     const lines = clean.split(/\r?\n/);
     const errors = new Set();
+    const firstStatement = removePythonComments(clean)
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .find(Boolean);
+    if (/^syntax\s*=\s*"(?:py|python)"\s*;?$/i.test(firstStatement || "")) {
+      return errors;
+    }
+    if (/^syntax\s*=\s*"js"\s*;?$/i.test(firstStatement || "")) {
+      return errors;
+    }
 
     for (let i = 0; i < lines.length; i++) {
       const text = lines[i].trim();
@@ -3859,10 +5524,14 @@ input[type="color"] {
 
       if (
         text.startsWith("snd(") ||
+        text.startsWith("dispin(") ||
+        text.startsWith("console.log(") ||
+        text.startsWith("print(") ||
         /^sleep\s*\(/.test(text) ||
         /^sleepTicks\s*\(/.test(text) ||
         text.startsWith("tempoconst") ||
         text.startsWith("newtempo") ||
+        text.startsWith("syntax") ||
         text.startsWith("key") ||
         text.startsWith("output.") ||
         text.startsWith("plugin(") ||
@@ -3879,12 +5548,75 @@ input[type="color"] {
     return errors;
   }
 
-  function tokenizeHighlightLine(line) {
+  function isPythonSyntaxSource(source, fallbackSyntax = state.project?.syntax) {
+    const clean = removePythonComments(
+      removeJsComments(removeCommentsForHighlight(source), false)
+    );
+    const firstStatement = clean
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .find(Boolean);
+    if (/^syntax\s*=\s*"(?:py|python)"\s*;?$/i.test(firstStatement || "")) {
+      return true;
+    }
+    if (/^syntax\s*=\s*"(?:js|cpp)"\s*;?$/i.test(firstStatement || "")) {
+      return false;
+    }
+    return ["py", "python"].includes(
+      String(fallbackSyntax || "").toLowerCase()
+    );
+  }
+
+  function pythonIndentationWarning(
+    source,
+    fallbackSyntax = state.project?.syntax
+  ) {
+    if (!isPythonSyntaxSource(source, fallbackSyntax)) return "";
+
+    const cleanLines = removeCommentsForHighlight(
+      removePythonComments(source)
+    ).split(/\r?\n/);
+    let hasTabs = false;
+    let hasSpaces = false;
+    let hasFullwidthSpaces = false;
+
+    for (const line of cleanLines) {
+      if (!line.trim()) continue;
+      const indentation = line.match(/^[ \t\u3000]*/)[0];
+      hasTabs ||= indentation.includes("\t");
+      hasSpaces ||= indentation.includes(" ");
+      hasFullwidthSpaces ||= indentation.includes("\u3000");
+    }
+
+    const warnings = [];
+    if (hasTabs && hasSpaces) {
+      warnings.push("mixed tabs and spaces");
+    }
+    if (hasFullwidthSpaces) warnings.push("full-width spaces");
+    return warnings.length
+      ? `Warning: ${warnings.join(" and ")} in Python indentation`
+      : "";
+  }
+
+  function tokenizeHighlightLine(line, pythonMode = false) {
     const tokens = [];
     let index = 0;
 
     while (index < line.length) {
       const ch = line[index];
+
+      if (
+        pythonMode &&
+        (ch === "\t" || ch === "\u3000") &&
+        /^[ \t\u3000]*$/.test(line.slice(0, index))
+      ) {
+        tokens.push({
+          className: ch === "\t" ? "syn-tab" : "syn-fullwidth-space",
+          value: ch
+        });
+        index++;
+        continue;
+      }
 
       if (ch === "<") {
         const end = line.indexOf(">", index + 1);
@@ -3935,7 +5667,7 @@ input[type="color"] {
 
       if ([
         "snd", "sleep", "sleepticks", "lp", "chips", "tempoconst",
-        "newtempo", "key", "output", "plugin"
+        "newtempo", "syntax", "key", "output", "plugin"
       ].includes(lower)) {
         className = "syn-command";
       } else if ([
@@ -3982,13 +5714,26 @@ input[type="color"] {
   function updateHighlight() {
     if (!DOM.codeEditor || !DOM.highlightCode) return;
 
-    const lines = DOM.codeEditor.value.split(/\r?\n/);
+    const source = DOM.codeEditor.value;
+    const lines = source.split(/\r?\n/);
+    const pythonMode =
+      isPythonSyntaxSource(source) ||
+      isPythonSyntaxSource(state.source);
+    DOM.editorContent?.classList.toggle("python-syntax", pythonMode);
+    if (DOM.indentationWarning) {
+      const warning = pythonIndentationWarning(
+        source,
+        pythonMode ? "py" : "cpp"
+      );
+      DOM.indentationWarning.textContent = warning;
+      DOM.indentationWarning.hidden = !warning;
+    }
     const missing = findMissingSemicolonLines(
-      DOM.codeEditor.value
+      source
     );
 
     DOM.highlightCode.innerHTML = lines.map((line, index) => {
-      const content = tokenizeHighlightLine(line)
+      const content = tokenizeHighlightLine(line, pythonMode)
         .map(token => {
           return `<span class="${token.className}">${escapeHtml(token.value)}</span>`;
         })
@@ -4152,6 +5897,7 @@ input[type="color"] {
       const project = compiler.compile();
 
       if (commit) {
+        state.trackErrors.clear();
         for (const trackName of state.pendingTrackNames) {
           if (!project.tracks.some(track => track.name === trackName)) {
             project.ensureTrack(trackName);
@@ -4170,9 +5916,34 @@ input[type="color"] {
       return project;
     } catch (error) {
       reportError(error);
+      state.trackErrors.clear();
+      markTrackError(source, error, trackRanges);
+      updateTrackWarnings();
       if (DOM.compileStatus) DOM.compileStatus.textContent = "Compile failed";
       setStatus("Error", false);
       return null;
+    }
+  }
+
+  function markTrackError(source, error, trackRanges = null) {
+    const errorLine = Number(error?.line);
+    if (!Number.isInteger(errorLine) || errorLine < 1) return;
+
+    const sourceLines = source.split(/\r\n?|\n/);
+    const lineBreaks = source.match(/\r\n?|\n/g) || [];
+    let lineStart = 0;
+    for (let index = 0; index < errorLine - 1; index++) {
+      lineStart += sourceLines[index].length +
+        (lineBreaks[index]?.length || 0);
+    }
+
+    const owningRange = trackRanges?.find(
+      range => lineStart >= range.start && lineStart < range.end
+    );
+    const trackName = owningRange?.trackName ||
+      (trackRanges?.length ? null : state.selectedTrack);
+    if (trackName) {
+      state.trackErrors.set(trackName, error.message || String(error));
     }
   }
 
@@ -4226,11 +5997,17 @@ input[type="color"] {
         );
     }
 
+    for (const entry of project.consoleLogs) {
+        log(entry.message, "info");
+    }
+
     try {
       runPlugins(project);
       if (processOutputs) processOutputRequests(project);
     } catch (error) {
       reportError(error);
+      markTrackError(source, error, trackRanges);
+      updateTrackWarnings();
       if (DOM.compileStatus) DOM.compileStatus.textContent = "Compile failed";
       setStatus("Error", false);
       return null;
@@ -4316,14 +6093,30 @@ input[type="color"] {
 
       const dot = document.createElement("span");
       dot.className = "track-dot";
+      track.color = state.trackColors.get(track.name) || track.color;
       dot.style.background = track.color;
 
       const info = document.createElement("span");
       info.className = "track-info";
 
+      const nameRow = document.createElement("span");
+      nameRow.className = "track-name-row";
+
       const name = document.createElement("span");
       name.className = "track-name";
       name.textContent = track.name;
+
+      const warning = document.createElement("span");
+      warning.className = "track-warning";
+      warning.textContent = "⚠";
+      warning.setAttribute("aria-label", "Indentation warning");
+      warning.hidden = true;
+
+      const error = document.createElement("span");
+      error.className = "track-error";
+      error.textContent = "✕";
+      error.setAttribute("aria-label", "Compile error");
+      error.hidden = true;
 
       const meta = document.createElement("span");
       meta.className = "track-meta";
@@ -4335,7 +6128,8 @@ input[type="color"] {
       status.dataset.trackState = track.name;
       status.textContent = "idle";
 
-      info.append(name, meta);
+      nameRow.append(name, warning, error);
+      info.append(nameRow, meta);
       item.append(dot, info, status);
       DOM.trackList.appendChild(item);
 
@@ -4353,6 +6147,8 @@ input[type="color"] {
         selectTrack();
       });
     }
+
+    updateTrackWarnings(project);
 
     if (DOM.addNoteButton) {
       DOM.addNoteButton.disabled =
@@ -4377,6 +6173,60 @@ input[type="color"] {
     }
     updateProjectInfo(project);
     renderConsole();
+  }
+
+  function updateTrackWarnings(project = state.project) {
+    if (!project || !DOM.trackList) return;
+
+    const projectSource = composeProjectSource(project);
+    const syntax = isPythonSyntaxSource(projectSource, project.syntax)
+      ? "py"
+      : "cpp";
+    const items = Array.from(
+      DOM.trackList.querySelectorAll(".track-item")
+    );
+    for (const track of project.tracks) {
+      const item = items.find(
+        element => element.dataset.trackName === track.name
+      );
+      if (!item) continue;
+
+      const warningMessage = pythonIndentationWarning(
+        track.code,
+        syntax
+      );
+      const warningIcon = item.querySelector(".track-warning");
+      const errorMessage = state.trackErrors.get(track.name);
+      const errorIcon = item.querySelector(".track-error");
+      item.classList.toggle(
+        "indentation-warning",
+        Boolean(warningMessage) && !errorMessage
+      );
+      item.classList.toggle("has-error", Boolean(errorMessage));
+      item.title = errorMessage
+        ? `${track.name}: ${errorMessage}`
+        : warningMessage
+          ? `${track.name}: ${warningMessage}`
+        : track.name;
+      if (warningIcon) {
+        warningIcon.hidden = !warningMessage || Boolean(errorMessage);
+        warningIcon.title = warningMessage;
+      }
+      if (errorIcon) {
+        errorIcon.hidden = !errorMessage;
+        errorIcon.title = errorMessage || "";
+      }
+      if (errorMessage) {
+        item.setAttribute("aria-label", `${track.name}, error`);
+      } else if (warningMessage) {
+        item.setAttribute(
+          "aria-label",
+          `${track.name}, indentation warning`
+        );
+      } else {
+        item.removeAttribute("aria-label");
+      }
+    }
   }
 
   function addNoteToSelectedTrack() {
@@ -4651,6 +6501,7 @@ input[type="color"] {
     }[mode];
 
     const deleting = mode === "delete";
+    const track = state.project?.tracks.find(item => item.name === name);
     DOM.trackModalMessage.textContent = deleting
       ? `Delete "${name}"? Its events will be removed from the project.`
       : "";
@@ -4658,6 +6509,12 @@ input[type="color"] {
     DOM.trackNameLabel.hidden = deleting;
     DOM.trackNameInput.hidden = deleting;
     DOM.trackNameInput.value = name;
+    DOM.trackColorLabel.hidden = deleting;
+    DOM.trackColorInput.hidden = deleting;
+    DOM.trackColorInput.value = track
+      ? state.trackColors.get(track.name) || track.color
+      : colorForTrack(name);
+    updateTrackColorPreview();
     DOM.trackModalOk.textContent = deleting ? "Delete" : "OK";
     DOM.trackModalOk.classList.toggle("danger", deleting);
     DOM.trackModalOk.classList.toggle("primary", !deleting);
@@ -4702,14 +6559,38 @@ input[type="color"] {
     return trackName;
   }
 
-  function addTrack(name) {
+  function validateTrackColor(value) {
+    const color = String(value).trim();
+    if (!isValidTrackColor(color)) {
+      reportError(new SWSError(
+        1,
+        "ValueError",
+        "track color must be a CSS color name or a valid hexadecimal color"
+      ));
+      return null;
+    }
+    return color;
+  }
+
+  function updateTrackColorPreview() {
+    if (!DOM.trackColorInput || !DOM.trackColorPreview) return;
+    const color = DOM.trackColorInput.value.trim();
+    DOM.trackColorPreview.style.background = isValidTrackColor(color)
+      ? color
+      : "transparent";
+  }
+
+  function addTrack(name, color) {
     const project = getEditableProject();
     if (!project) return false;
 
     const trackName = validateTrackName(name, project);
     if (!trackName) return false;
+    const trackColor = validateTrackColor(color);
+    if (!trackColor) return false;
 
-    project.ensureTrack(trackName);
+    const track = project.ensureTrack(trackName);
+    setTrackColor(track, trackColor);
     state.pendingTrackNames.add(trackName);
     state.selectedTrack = trackName;
     state.project = project;
@@ -4722,7 +6603,7 @@ input[type="color"] {
     return true;
   }
 
-  function renameSelectedTrack(newName) {
+  function renameSelectedTrack(newName, color) {
     const project = getEditableProject();
     if (!project) return false;
 
@@ -4736,13 +6617,17 @@ input[type="color"] {
       currentName
     );
     if (!validatedName) return false;
+    const trackColor = validateTrackColor(color);
+    if (!trackColor) return false;
 
     track.code = replaceTrackReferences(
       track.code,
       currentName,
       validatedName
     );
+    state.trackColors.delete(currentName);
     project.renameTrack(currentName, validatedName);
+    setTrackColor(track, trackColor);
     if (state.pendingTrackNames.delete(currentName)) {
       state.pendingTrackNames.add(validatedName);
     }
@@ -4769,6 +6654,7 @@ input[type="color"] {
     }
 
     project.removeTrack(currentName);
+    state.trackColors.delete(currentName);
     state.pendingTrackNames.delete(currentName);
     state.selectedTrack = project.tracks[0]?.name || "default";
     state.project = project;
@@ -4820,9 +6706,15 @@ input[type="color"] {
   function submitTrackModal() {
     let succeeded = false;
     if (state.trackModalMode === "add") {
-      succeeded = addTrack(DOM.trackNameInput.value);
+      succeeded = addTrack(
+        DOM.trackNameInput.value,
+        DOM.trackColorInput.value
+      );
     } else if (state.trackModalMode === "rename") {
-      succeeded = renameSelectedTrack(DOM.trackNameInput.value);
+      succeeded = renameSelectedTrack(
+        DOM.trackNameInput.value,
+        DOM.trackColorInput.value
+      );
     } else if (state.trackModalMode === "delete") {
       succeeded = deleteSelectedTrack();
     }
@@ -5956,8 +7848,46 @@ input[type="color"] {
     return 0;
   }
 
-  // Share one seeded stereo render path between live playback and WAV export.
   function renderAudio(project, sampleRate = SAMPLE_RATE) {
+    if (!state.outputPlugin) {
+      return renderBuiltInAudio(project, sampleRate);
+    }
+
+    try {
+      const song = project.toPluginData();
+      song.sample_rate = sampleRate;
+      const output = state.outputPlugin.render(song, sampleRate);
+      if (
+        !output ||
+        !(output.left instanceof Float32Array) ||
+        !(output.right instanceof Float32Array) ||
+        output.left.length === 0 ||
+        output.left.length !== output.right.length
+      ) {
+        throw new TypeError(
+          "render() must return equal-length, non-empty Float32Array left and right channels"
+        );
+      }
+      for (let index = 0; index < output.left.length; index++) {
+        if (
+          !Number.isFinite(output.left[index]) ||
+          !Number.isFinite(output.right[index])
+        ) {
+          throw new TypeError("render() returned a non-finite audio sample");
+        }
+      }
+      return output;
+    } catch (error) {
+      throw new SWSError(
+        1,
+        "OutputPluginError",
+        `output plugin '${state.outputPlugin.name}' failed: ${error.message || error}`
+      );
+    }
+  }
+
+  // Share one seeded stereo render path between live playback and WAV export.
+  function renderBuiltInAudio(project, sampleRate = SAMPLE_RATE) {
     const totalBeat = Math.max(
       ...project.events.map(event => event.end)
     );
@@ -6098,7 +8028,14 @@ input[type="color"] {
     if (totalBeat <= 0) {
       throw new SWSError(1, "ValueError", "total duration is zero");
     }
-    const stereoSamples = renderAudio(project, SAMPLE_RATE);
+    let stereoSamples;
+    try {
+      stereoSamples = renderAudio(project, SAMPLE_RATE);
+    } catch (error) {
+      if (request) throw error;
+      reportError(error);
+      return;
+    }
 
     downloadBlob(
       makeWavBlob(
@@ -6210,6 +8147,19 @@ input[type="color"] {
     state.audioContext = new AudioContextClass();
     await state.audioContext.resume();
 
+    let audio;
+    try {
+      audio = renderAudio(
+        playbackProject,
+        state.audioContext.sampleRate
+      );
+    } catch (error) {
+      reportError(error);
+      await state.audioContext.close();
+      state.audioContext = null;
+      return;
+    }
+
     state.playbackStarted = true;
     state.playing = true;
     updateProjectInfo(playbackProject);
@@ -6221,10 +8171,6 @@ input[type="color"] {
     log("Playing...", "success");
 
     const base = state.audioContext.currentTime + 0.05;
-    const audio = renderAudio(
-      playbackProject,
-      state.audioContext.sampleRate
-    );
     const audioBuffer = state.audioContext.createBuffer(
       2,
       audio.left.length,
@@ -6346,6 +8292,52 @@ input[type="color"] {
     reader.readAsText(file);
   }
 
+  function loadOutputPluginFile(file) {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const name = file.name.replace(/\.js$/i, "");
+
+      try {
+        const createPlugin = new Function(
+          "SWS",
+          `"use strict";\n${String(reader.result || "")}`
+        );
+        const plugin = createPlugin(Object.freeze({
+          api_version: 1,
+          type: "output"
+        }));
+        if (!plugin || typeof plugin.render !== "function") {
+          throw new TypeError(
+            "output plugin must return an object with a render(song, sampleRate) function"
+          );
+        }
+
+        state.outputPlugin = { name, render: plugin.render.bind(plugin) };
+        if (DOM.outputPluginStatus) {
+          DOM.outputPluginStatus.textContent = `${name} loaded`;
+        }
+        log(`Output plugin loaded: ${name}`, "success");
+      } catch (error) {
+        reportError(new SWSError(
+          1,
+          "OutputPluginError",
+          `failed to load output plugin '${name}': ${error.message || error}`
+        ));
+      }
+    };
+
+    reader.onerror = () => {
+      reportError(new SWSError(
+        1,
+        "FileError",
+        "failed to read output plugin"
+      ));
+    };
+
+    reader.readAsText(file);
+  }
+
   function runPlugins(project) {
     for (const request of project.plugins) {
       const source = state.plugins.get(request.name);
@@ -6388,6 +8380,7 @@ input[type="color"] {
       state.dirty = true;
       setStatus("Modified", true);
       refreshEditor();
+      updateTrackWarnings();
     });
 
     DOM.codeEditor.addEventListener("keydown", event => {
@@ -6398,14 +8391,15 @@ input[type="color"] {
       const start = DOM.codeEditor.selectionStart;
       const end = DOM.codeEditor.selectionEnd;
       const value = DOM.codeEditor.value;
+      const indentation = isPythonSyntaxSource(value) ? "\t" : "  ";
 
       DOM.codeEditor.value =
         value.slice(0, start) +
-        "  " +
+        indentation +
         value.slice(end);
 
-      DOM.codeEditor.selectionStart = start + 2;
-      DOM.codeEditor.selectionEnd = start + 2;
+      DOM.codeEditor.selectionStart = start + indentation.length;
+      DOM.codeEditor.selectionEnd = start + indentation.length;
 
       saveCurrentTrackEditorState();
       state.source = composeProjectSource(state.project);
@@ -6433,6 +8427,13 @@ input[type="color"] {
     );
     DOM.trackModalCancel?.addEventListener("click", closeTrackModal);
     DOM.trackModalOk?.addEventListener("click", submitTrackModal);
+    DOM.trackColorInput?.addEventListener("input", updateTrackColorPreview);
+    DOM.trackColorInput?.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitTrackModal();
+      }
+    });
     DOM.trackNameInput?.addEventListener("keydown", event => {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -6504,6 +8505,7 @@ input[type="color"] {
     });
 
     DOM.pluginButton?.addEventListener("click", () => {
+      selectPluginCategory("sound");
       DOM.pluginModal?.classList.add("active");
     });
 
@@ -6515,11 +8517,65 @@ input[type="color"] {
       DOM.pluginFileInput?.click();
     });
 
+    DOM.soundCategoryButton?.addEventListener("click", () => {
+      selectPluginCategory("sound");
+    });
+
+    DOM.outputCategoryButton?.addEventListener("click", () => {
+      selectPluginCategory("output");
+    });
+
+    DOM.loadOutputPluginButton?.addEventListener("click", () => {
+      DOM.outputPluginFileInput?.click();
+    });
+
+    DOM.outputPluginFileInput?.addEventListener("change", event => {
+      const file = event.target.files?.[0];
+      if (file) loadOutputPluginFile(file);
+      event.target.value = "";
+    });
+
+    DOM.resetOutputPluginButton?.addEventListener("click", () => {
+      state.outputPlugin = null;
+      if (DOM.outputPluginStatus) {
+        DOM.outputPluginStatus.textContent = "Using built-in output";
+      }
+      log("Built-in output selected", "info");
+    });
+
     DOM.pluginFileInput?.addEventListener("change", event => {
       const file = event.target.files?.[0];
       if (file) loadPluginFile(file);
       event.target.value = "";
     });
+  }
+
+  function selectPluginCategory(category) {
+    const showSound = category === "sound";
+    if (DOM.soundPluginSection) DOM.soundPluginSection.hidden = !showSound;
+    if (DOM.outputPluginSection) DOM.outputPluginSection.hidden = showSound;
+    if (DOM.soundCategoryButton) {
+      DOM.soundCategoryButton.classList.toggle("primary", showSound);
+      DOM.soundCategoryButton.setAttribute("aria-pressed", String(showSound));
+    }
+    if (DOM.outputCategoryButton) {
+      DOM.outputCategoryButton.classList.toggle("primary", !showSound);
+      DOM.outputCategoryButton.setAttribute("aria-pressed", String(!showSound));
+    }
+  }
+
+  function initializePluginUi() {
+    selectPluginCategory("sound");
+    if (DOM.soundInstrumentList) {
+      DOM.soundInstrumentList.textContent = Array.from(VALID_INSTRUMENTS)
+        .filter(instrument => instrument !== "null")
+        .join(", ");
+    }
+    if (DOM.outputPluginStatus) {
+      DOM.outputPluginStatus.textContent = state.outputPlugin
+        ? `${state.outputPlugin.name} loaded`
+        : "Using built-in output";
+    }
   }
 
   function initializeEditor() {
@@ -6539,6 +8595,7 @@ input[type="color"] {
 
   function initialize() {
     initDom();
+    initializePluginUi();
     initializeEditor();
     bindEditorEvents();
     bindToolbarEvents();
