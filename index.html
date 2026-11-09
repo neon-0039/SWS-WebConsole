@@ -125,6 +125,11 @@ h1 {
   margin-right: 8px;
 }
 
+.usage-notes li:before {
+  content: "! ";
+  color: #ffd166;
+}
+
 .features {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -318,11 +323,26 @@ h1 {
   </div>
 
   <div class="buttons">
-    <a href="SWS(2).html" class="btn btn-primary" id="btn-launch">▶ Launch Console</a>
+    <a href="SWS.html" class="btn btn-primary" id="btn-launch">▶ Launch Console</a>
+    <a href="SWS.html" download="SWS.html" class="btn btn-secondary" id="btn-download-app">本体をダウンロード</a>
+    <a href="Sound%20Wav%20Script%20Web%20Console%E5%88%A9%E7%94%A8%E8%80%85%E5%90%91%E3%81%91%E3%82%AC%E3%82%A4%E3%83%89.txt"
+       download="Sound Wav Script Web Console利用者向けガイド.txt"
+       class="btn btn-secondary" id="btn-download-guide">利用者ガイドをダウンロード</a>
     <a href="help.html" class="btn btn-secondary" id="btn-help">📚 Help</a>
     <a href="#example" class="btn btn-secondary" id="btn-example">View Example</a>
+    <a href="#usage-notes" class="btn btn-secondary" id="btn-usage-notes">利用上の注意</a>
     <a href="https://github.com/neon-0039/SWS-WebConsole" class="btn btn-secondary" id="btn-github">GitHub</a>
   </div>
+
+  <section class="description usage-notes" id="usage-notes">
+    <h2 id="usage-title">利用上の注意</h2>
+    <ul>
+      <li id="usage-plugin">プラグインを読み込む場合は、コードの内容と提供元を確認し、信頼できるものだけを使用してください。</li>
+      <li id="usage-warranty">本ツールは無保証です。利用やプラグインの実行はご自身の責任で行ってください。</li>
+      <li id="usage-credit">改変版を配布する場合は、作者名 neon_0039 または本家URLを表示してください。</li>
+      <li id="usage-work">本ツールで作成した作品は、クレジット表記なしで公開・商用利用できます。</li>
+    </ul>
+  </section>
 
   <div class="code-example" id="example">
     <h3 id="code-title">Quick Example</h3>
@@ -349,7 +369,7 @@ lp(4){
   </div>
 
   <div class="footer">
-    <p id="footer-copyright">© 2024 SWS Web Console | Version 0.2.0</p>
+    <p id="footer-copyright">© 2026 SWS Web Console | Version 0.6</p>
     <p>
       <a href="https://github.com/neon-0039/SWS-WebConsole" id="footer-repo">GitHub Repository</a> | 
       <a href="https://github.com/neon-0039/SWS-WebConsole/issues" id="footer-issues">Report Issues</a>
@@ -386,10 +406,18 @@ const translations = {
     'feat6-title': '💾 保存 & 読み込み',
     'feat6-desc': 'プロジェクトを .ss ファイルとして保存し、UST ファイルを読み込み、作曲をエクスポートできます。',
     'btn-launch': '▶ コンソールを起動',
+    'btn-download-app': '本体をダウンロード',
+    'btn-download-guide': '利用者ガイドをダウンロード',
     'btn-example': '例を表示',
+    'btn-usage-notes': '利用上の注意',
     'btn-github': 'GitHub',
+    'usage-title': '利用上の注意',
+    'usage-plugin': 'プラグインを読み込む場合は、コードの内容と提供元を確認し、信頼できるものだけを使用してください。',
+    'usage-warranty': '本ツールは無保証です。利用やプラグインの実行はご自身の責任で行ってください。',
+    'usage-credit': '改変版を配布する場合は、作者名 neon_0039 または本家URLを表示してください。',
+    'usage-work': '本ツールで作成した作品は、クレジット表記なしで公開・商用利用できます。',
     'code-title': 'クイック例',
-    'footer-copyright': '© 2024 SWS Web Console | バージョン 0.2.0',
+    'footer-copyright': '© 2026 SWS Web Console | バージョン 0.6',
     'footer-repo': 'GitHub リポジトリ',
     'footer-issues': '問題を報告',
     'footer-info': 'Web Audio API で構築 | 依存関係なし | 完全オープンソース',
@@ -418,10 +446,18 @@ const translations = {
     'feat6-title': '💾 救う & 荷物を積む',
     'feat6-desc': 'それはあなたの企画を .ss ファイルとして天に救い、UST ファイルの荷物を積み込み、作曲を輸出できます。',
     'btn-launch': '▶ 慰めを打ち上げろ',
+    'btn-download-app': '本体を下降せよ',
+    'btn-download-guide': '使用者の案内書を下降せよ',
     'btn-example': '例を公衆に晒す',
+    'btn-usage-notes': '使用の注記',
     'btn-github': 'ギットのハブ',
+    'usage-title': '使用の注記',
+    'usage-plugin': '插件を荷造りする前に、そのコードと源を見直し、あなたが信じる插件のみ使用せよ。',
+    'usage-warranty': 'この道具は保証なしで与えられる。これを使い、插件を走らせることはあなた自身の危険の上で行う。',
+    'usage-credit': '変更された版を配る時は、neon_0039に信用を与えるか、元の計画へ連結せよ。',
+    'usage-work': 'この道具で作られた仕事は、信用なしで出版し、商業的に使用することができる。',
     'code-title': '素早い例（スピーディー）',
-    'footer-copyright': '© 2024 SWS 蜘蛛の巣 慰め | 版 0.2.0',
+    'footer-copyright': '© 2026 SWS 蜘蛛の巣 慰め | 版 0.6',
     'footer-repo': 'GitHub の倉庫（リポジトリ）',
     'footer-issues': '問題を報告して訴える',
     'footer-info': 'Web Audio API で建設された | 依存する関係はゼロ | それは完全に開かれている',
@@ -450,10 +486,18 @@ const translations = {
     'feat6-title': '💾 Save & Load',
     'feat6-desc': 'Save your projects as .ss files, load UST files, and export your final compositions.',
     'btn-launch': '▶ Launch Console',
+    'btn-download-app': 'Download the app',
+    'btn-download-guide': 'Download user guide',
     'btn-example': 'View Example',
+    'btn-usage-notes': 'Usage notes',
     'btn-github': 'GitHub',
+    'usage-title': 'Usage notes',
+    'usage-plugin': 'Before loading a plugin, review its code and source; use only plugins you trust.',
+    'usage-warranty': 'This tool is provided without warranty. Use it and run plugins at your own risk.',
+    'usage-credit': 'When distributing a modified version, credit neon_0039 or link to the original project.',
+    'usage-work': 'Works created with this tool may be published and used commercially without credit.',
     'code-title': 'Quick Example',
-    'footer-copyright': '© 2024 SWS Web Console | Version 0.2.0',
+    'footer-copyright': '© 2026 SWS Web Console | Version 0.6',
     'footer-repo': 'GitHub Repository',
     'footer-issues': 'Report Issues',
     'footer-info': 'Built with Web Audio API | No dependencies | Fully open source',
@@ -482,10 +526,18 @@ const translations = {
     'feat6-title': '💾 Save & Load',
     'feat6-desc': 'Save your projects as .ss files, load UST files, and export your final compositions.',
     'btn-launch': '▶ Launch Console',
+    'btn-download-app': 'Download the app',
+    'btn-download-guide': 'Download user guide',
     'btn-example': 'View Example',
+    'btn-usage-notes': 'Usage notes',
     'btn-github': 'GitHub',
+    'usage-title': 'Usage notes',
+    'usage-plugin': 'Before loading a plug-in, review its code and source; use only plug-ins you trust.',
+    'usage-warranty': 'This tool is provided without warranty. Use it and run plug-ins at your own risk.',
+    'usage-credit': 'When distributing a modified version, credit neon_0039 or link to the original project.',
+    'usage-work': 'Works created with this tool may be published and used commercially without credit.',
     'code-title': 'Quick Example',
-    'footer-copyright': '© 2024 SWS Web Console | Version 0.2.0',
+    'footer-copyright': '© 2026 SWS Web Console | Version 0.6',
     'footer-repo': 'GitHub Repository',
     'footer-issues': 'Report Issues',
     'footer-info': 'Built with Web Audio API | No dependencies | Fully open source',
@@ -514,10 +566,18 @@ const translations = {
     'feat6-title': '💾 Speichern & Laden',
     'feat6-desc': 'Speichern Sie Ihre Projekte als .ss-Dateien, laden Sie UST-Dateien und exportieren Sie Ihre endgültigen Kompositionen.',
     'btn-launch': '▶ Konsole starten',
+    'btn-download-app': 'Anwendung herunterladen',
+    'btn-download-guide': 'Benutzerhandbuch herunterladen',
     'btn-example': 'Beispiel anzeigen',
+    'btn-usage-notes': 'Nutzungshinweise',
     'btn-github': 'GitHub',
+    'usage-title': 'Nutzungshinweise',
+    'usage-plugin': 'Prüfen Sie vor dem Laden eines Plug-ins dessen Code und Quelle; verwenden Sie nur Plug-ins, denen Sie vertrauen.',
+    'usage-warranty': 'Dieses Tool wird ohne Gewährleistung bereitgestellt. Nutzung und Ausführung von Plug-ins erfolgen auf eigene Verantwortung.',
+    'usage-credit': 'Bei der Weitergabe einer geänderten Version nennen Sie neon_0039 oder verlinken Sie das Originalprojekt.',
+    'usage-work': 'Mit diesem Tool erstellte Werke dürfen ohne Namensnennung veröffentlicht und kommerziell genutzt werden.',
     'code-title': 'Schnellbeispiel',
-    'footer-copyright': '© 2024 SWS Web Console | Version 0.2.0',
+    'footer-copyright': '© 2026 SWS Web Console | Version 0.6',
     'footer-repo': 'GitHub-Repository',
     'footer-issues': 'Probleme melden',
     'btn-help': 'Hilfe',
