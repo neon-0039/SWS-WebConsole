@@ -2,9 +2,9 @@
 
 # Site settings
 title: "SWS Web Console"
-description: "Sound Wave Script - Web-based music notation and synthesis tool"
-url: "https://francium87arc-cyber.github.io"
-baseurl: "/SWS" # リポジトリ名に合わせて変更してください
+description: "Sound Wav Script Web Console"
+url: "https://neon-0039.github.io"
+baseurl: "/SWS-WebConsole"
 
 # Build settings
 theme: jekyll-theme-minimal
@@ -47,7 +47,7 @@ defaults:
 
 # Social links
 social_links:
-  github: francium87arc-cyber
+  github: neon-0039
 
 # Code snippet options
 highlight: rouge
@@ -63,8 +63,7 @@ plugins:
 social:
   name: SWS Web Console
   links:
-    - https://github.com/francium87arc-cyber
-
+    - https://github.com/neon-0039/SWS-WebConsole
 # Analytics (optional - uncomment to enable)
 # google_analytics: UA-XXXXXXXX-X
 
