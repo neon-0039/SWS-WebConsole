@@ -2,7 +2,7 @@
   "name": "sws-web-console",
   "version": "0.2.0",
   "description": "Sound Wave Script - Web-based music notation and synthesis tool",
-  "main": "SWS(2).html",
+  "main": "SWS.html",
   "scripts": {
     "start": "python -m http.server 8000",
     "serve": "bundle exec jekyll serve",
