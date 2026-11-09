@@ -1,8 +1,8 @@
 {
   "name": "sws-web-console",
   "version": "0.2.0",
-  "description": "Sound Wave Script - Web-based music notation and synthesis tool",
-  "main": "SWS.html",
+  "description": "Sound Wav Script Web Console",
+  "main": "index.html",
   "scripts": {
     "start": "python -m http.server 8000",
     "serve": "bundle exec jekyll serve",
@@ -18,16 +18,16 @@
     "ust",
     "midi"
   ],
-  "author": "francium87arc-cyber",
+  "author": "neon_0039 (https://github.com/neon-0039)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/francium87arc-cyber/SWS.git"
+    "url": "https://github.com/neon-0039/SWS-WebConsole.git"
   },
-  "homepage": "https://github.com/francium87arc-cyber/SWS#readme",
-  "bugs": {
-    "url": "https://github.com/francium87arc-cyber/SWS/issues"
-  },
+  "homepage": "https://neon-0039.github.io/SWS-WebConsole/",
+"bugs": {
+  "url": "https://github.com/neon-0039/SWS-WebConsole/issues"
+},
   "devDependencies": {
     "@babel/core": "^7.23.0",
     "@babel/preset-env": "^7.23.0",
