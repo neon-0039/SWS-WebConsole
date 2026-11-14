@@ -1,0 +1,1244 @@
+﻿Sound Wav Script Web Console User Guide v0.7
+==============================================
+
+This guide explains the basic operation of Sound Wav Script Web Console v0.7 and how to write Sound Wav Script (SWS).
+
+Table of Contents
+----
+
+I. About Sound Wav Script Web Console
+  I-I. What is Sound Wav Script
+II. How to Use the Screen
+  II-I. Toolbar and Shortcut Keys
+  II-II. Settings Menu
+  II-III. Display and Color Vision Support
+III. First Song
+IV. Syntax Format
+V. Variables and Arrays
+  V-I. Variables
+  V-II. Arrays
+VI. Notes, Tempo, and Key
+  VI-I. Notes and Note Lengths
+    VI-I-I. Chords with fsn
+    VI-I-II. Simultaneous Playback with -cnt-
+  VI-II. Instruments, Tempo, and Key
+VII. Repetition and Branching
+  VII-I. Repetition with lp / for / sws.setInterval
+    VII-I-I. Count-specified for
+    VII-I-II. Array traversal with for...of
+    VII-I-III. Repeat until the end of the song
+  VII-II. if / else statements
+  VII-III. switch statement
+  VII-IV. Numeric functions
+    VII-IV-I. Trigonometric functions and logarithms
+VIII. Display and chips / function
+  VIII-I. Display
+  VIII-II. chips and function
+IX. Tracks
+  IX-I. Track assignment with the class attribute
+X. Loading and Exporting Files
+  X-I. Loading Files
+  X-II. Exporting Files
+XI. Synthesis Engine and Plugins
+  XI-I. SWS Plugin API
+    XI-I-I. Data plugins
+    XI-I-II. Output plugins
+    XI-I-III. Input plugins
+    XI-I-IV. Integrated plugin packages (.ssp)
+XII. If Troubleshooting
+END. Credits / Usage Notes
+
+I. About Sound Wav Script Web Console
+--------------------------
+
+SWS is the abbreviation for Sound Wav Script. Sound Wav Script Web Console is a tool for
+describing and playing music using Sound Wav Script in the browser.
+Songs you create can be saved in WAV, MIDI, UST, and SS formats.
+In normal use, you can simply open the app's HTML file in a browser.
+
+In SWS, you write instructions such as notes and tempo into the source code, compile it to
+create music events, and then play the events in the browser or export them to
+supported file formats.
+There are three styles for writing programs: Sound Wav Script (SWS) format,
+JavaScript-like SWS, and Python-like SWS.
+The displayed names have changed, but syntax declarations remain `syntax="JS"` for
+JavaScript-like SWS and `syntax="py"` for Python-like SWS.
+
+I-I. What is Sound Wav Script
+---------------
+
+Sound Wav Script (SWS) is a domain-specific language (DSL) specialized for writing music.
+By arranging instructions for notes, instruments, tempo, and other elements, and combining
+variables, conditional branching, and repetition, you can construct the structure of a song.
+After compiling the source, music events are generated and can be used for playback and
+export to WAV, MIDI, and other formats.
+
+In SWS format, the end of a statement is marked with a semicolon (;), and groups of code are
+wrapped in braces ({}). Newlines and indentation are not treated as statement separators.
+Therefore, changing indentation does not change the meaning of the program. This differs from
+the notation used in JavaScript-like SWS and Python-like SWS. For concrete examples, refer to
+"Syntax Format" below and the explanations of each syntax.
+
+
+II. How to Use the Screen
+---------------
+
+II-I. Toolbar and Shortcut Keys
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Main functions in the top toolbar
+
+  Open        Load .ss, .ust, .mid, and .midi files
+  Save        Save the current source as a .ss file
+  Compile     Check the source and create music events
+  Play        Play the song. After editing, it is compiled before playback.
+  Stop        Stop playback
+  MIDI / WAV  Export as MIDI or WAV
+  UST         Export as UST
+
+Shortcuts are Ctrl+Enter (Compile), Ctrl+Shift+Enter (Play), Ctrl+S (Save),
+and Esc (Stop).
+
+The Output section at the bottom of the screen also has buttons to save WAV, MIDI, UST, and SS.
+Compilation results and output from the program are shown in the execution log on the right.
+Errors show the line number and content.
+
+In the left panel, Tracks / Classes, you can select tracks or classes and edit them.
+Even if the editor display is compiled, the content after editing may differ from the previous
+compiled result. Before saving or exporting, run Compile and confirm that there are no errors.
+
+II-II. Settings Menu
+~~~~~~~~~~~~~~~~~~~
+
+In Settings, you can configure the display language, theme, editor, volume, plugins, and more.
+
+• Display
+
+  The display language can be selected from Japanese, German, English (US), and English (UK).
+  You can switch the screen theme with the Light Mode / Dark Mode button.
+  Settings such as language and theme are stored in the browser and carried over on the next visit.
+
+• Editor
+
+  You can set the font size, wrapping for long lines, and whether to show line numbers.
+  By pressing the triangle next to the line numbers, you can fold a brace block spanning multiple lines.
+  A folded block can be expanded by clicking the editor body.
+  Even while folded, the original source is retained and used for editing, compiling, and saving.
+
+• Auto-save and Change Confirmation
+
+  When auto-save is enabled, unsaved source is stored as a draft in the browser and can be restored
+  when the app is launched again. Drafts are saved inside this browser, not downloaded as a .ss file.
+  If warning on unsaved changes is enabled, you are asked to confirm when opening a file or leaving the page.
+
+• Volume and Plugins
+
+  Master volume is applied to playback and WAV output.
+  From the Plugin button, you can open screens for built-in instruments, synthesis engines,
+  SWS data/input plugins, and integrated plugin packages.
+  Opening the plugin screen closes Settings.
+
+II-III. Display and Color Vision Support
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+From Settings -> "Syntax Highlight Color", you can choose a color preset for the source code.
+The presets are "Default", "Soft", "Primary", "Blue", "Red", "Purple",
+"Sunset", "Monochrome", "Color Vision Support", "Color Vision Support (Warm Colors)",
+and "Color Vision Support (High Contrast)".
+The colors are applied according to the current light/dark theme, and the selection is stored in the browser.
+
+Colors are assigned by code type. Instructions, definitions, numbers, note names, instrument names,
+display commands, and strings are color-coded separately. Comments are gray in every preset.
+The color-vision-support presets are choices designed with different color combinations and brightness levels.
+Because visibility varies based on personal differences and display environment, try multiple presets as needed
+and choose one that is easy to read.
+
+
+III. Your First Song
+---------------
+
+The following example sets the tempo to 120 BPM and plays C4, E4, and G4 on the piano in order.
+Enter it in the editor, check it with Compile, and then press Play.
+
+  syntax="JS";
+  tempoconst="120";
+  sws.snd("piano",4,C4)
+  sws.snd("piano",4,E4)
+  sws.snd("piano",4,G4)
+
+C4, E4, and G4 are played in sequence.
+Note names are not written as strings; they are written like C4.
+The note length is specified by the denominator. 4 is a quarter note, 8 is an eighth note, and 16 is a sixteenth note.
+Use snd(...) in SWS format and sws.snd(...) in JavaScript-like and Python-like SWS to play a note.
+The first argument is the instrument, the second is the length, and the third is the pitch.
+In this example, three quarter notes are played continuously.
+
+Volume can be specified with the vol attribute of snd / sws.snd. If omitted, the maximum volume is used.
+
+  sws.snd("piano",4,C4,vol=128)
+  sws.snd("piano",4,E4,vol=64)
+  sws.snd("piano",4,G4,vol=6db)
+
+Numeric values are integers from 0 to 128; 128 is maximum volume and 0 is silence.
+If you add db, you specify the relative attenuation from maximum volume.
+vol=6db means a volume 6 dB lower than maximum. It is specified in the range 0db to 100db,
+and decimals are also allowed (for example, vol=3.5db). Since the db value is an attenuation amount,
+it is written as a positive value.
+Negative values or out-of-range values cause an error.
+vol is applied to each snd event and reflected in playback and MIDI export volume.
+
+To use pitch points, first enable pitchmode.
+
+  pitchmode="on";
+  sws.snd("synth",4,C4,pitch=[Y=0,X=0;Y=10,X=240;Y=0,X=480])
+
+Each pitch point is specified as Y=amount of pitch change, X=number of ticks from the start of the note.
+Points are separated by semicolons, and X is a non-negative integer written in ascending order.
+Y is 10 per semitone; for example, Y=10 is one semitone higher, and Y=-10 is one semitone lower.
+The points between each pair are linearly interpolated, and after the last point, the final pitch is held.
+If pitchmode="on" is not set, pitch points are retained but not reflected in built-in playback or WAV output.
+pitchmode="off" disables them. External output plugins require plugin-side support for playback.
+MIDI output does not include pitch changes.
+IV. Syntax Format
+-----------
+
+You can specify the syntax format at the beginning of the file.
+If the declaration is omitted, SWS format is used.
+Place the syntax declaration as the first instruction in the source.
+Either syntax="SWS"; or syntax="SoundWavScript"; can be used in the syntax declaration.
+For new sources, the short syntax="SWS"; notation is recommended.
+Uppercase and lowercase are not distinguished, so syntax="soundwavscript"; is also recognized.
+
+Sound Wav Script (SWS) format
+
+  syntax="SWS";
+  snd("piano",4,C4);
+
+Normal instructions end with a semicolon. Newlines and indentation are not treated as instruction separators;
+they are only for readability. For example, the following two are the same instruction sequence.
+
+  snd("piano",4,C4);
+  snd("piano",4,E4);
+
+  snd("piano",4,C4); snd("piano",4,E4);
+
+In SWS format, blocks are enclosed in braces, and instructions inside blocks also end with semicolons.
+Indentation is free, but it is recommended to indent the inside of blocks for readability.
+A brace-delimited block itself usually does not end with a semicolon.
+
+JavaScript-like SWS
+
+  syntax="JS";
+  sws.snd("piano",4,C4)
+  console.log("Calculated result:", 2 + 3 * 4)
+
+Because instructions can be separated by line breaks, semicolons can be omitted.
+Use // or /* ... */ for comments.
+The syntax declaration also accepts syntax="Javascript";.
+
+Python-like SWS
+
+  syntax="py"
+  sws.snd("piano",4,C4)
+  print("Calculated result:", 2 + 3 * 4)
+
+Instructions are written one line at a time, and blocks are represented by indentation.
+Inside for, if, elif, else, and chips, indent with four half-width spaces or one tab.
+Comments run from # to the end of the line.
+
+If tabs and spaces are mixed in the indentation in Python-like SWS, or if full-width spaces are included,
+a warning is displayed. Tracks with warnings are shown with a yellow frame and "⚠".
+Tracks with compile errors are shown with a red frame and "✕".
+Do not mix the three syntaxes; in a file, choose one syntax format and use it consistently.
+Write the syntax declaration once as the first instruction. The semicolon at the end of the example instructions is
+required in Sound Wav Script (SWS) format, and usually optional in JavaScript-like SWS and Python-like SWS.
+
+
+V. Variables and Arrays
+-------------
+
+V-I. Variables
+-----------
+
+The declaration method differs by syntax format.
+
+Python-like SWS
+  score = 10
+
+JavaScript-like SWS
+  let score = 10
+  const limit = 100
+
+SWS format
+  frame score=10;
+  frame label="intro";
+  const(limit=100);
+  const maxScore=120;
+  const(minScore, 0);
+  score=score+1;
+
+Python-like SWS creates or updates variables with name = value.
+JavaScript-like SWS declares a mutable variable with let and a constant that cannot be reassigned with const.
+In SWS format, use frame name=value; to declare a variable that can hold any value.
+This is the recommended form. number(name=numericValue); is also available when you want to restrict
+the variable to numeric values. Numeric strings such as "12.5" assigned to a number variable are
+automatically converted to numbers. The forms const(name=value);, const(name, value);, and
+const name=value; all declare constants, which cannot be reassigned.
+Reassign a mutable variable with name=value;. You may also use number(name=numericValue); or
+frame name=value; for reassignment, but neither is required.
+Assigning to an undeclared variable, reassigning a constant, or redeclaring a constant is not allowed.
+Values may be numbers, strings, booleans, the no-value value, or expressions.
+Write the no-value value as null in SWS and JavaScript-like SWS, and as None in Python-like SWS.
+Both are represented as JavaScript null at runtime and can be assigned to variables or compared.
+
+  SWS format:        frame value=null;
+  JavaScript-like SWS: let value = null
+  Python-like SWS: value = None
+
+  number(amount="12.5");  // amount contains the number 12.5
+
+Declared values can be used in conditions and display expressions.
+Variable names must begin with a letter or underscore and use letters, numbers, and underscores.
+Before using a variable, assign it a value before the instruction that uses it.
+
+Example (JavaScript-like SWS)
+
+  syntax="JS";
+  let score = 2
+  const limit = 5
+  score = score + 3
+  if (score == limit) {
+      console.log("score=%d", score)
+  }
+
+Reassigning a value declared with const, or redeclaring a variable in the same scope, causes
+an error.
+num is a reserved name for the repetition count in lp. It cannot be used as a variable name,
+constant name, or JavaScript function parameter.
+
+V-II. Arrays
+-----------
+
+Arrays are created with [...]. Indices start at 0, and you can read and update elements.
+The index is an integer representing the element's position. notes[0] refers to the first element,
+notes[1] refers to the second. Place the index on the right-hand side to read a value, or on the
+left-hand side of an assignment to update an existing value.
+
+Example (Python-like SWS)
+  notes = [60, 64, 67]
+  notes[1] = 65
+  print("middle=%d", notes[1])
+
+Example (JavaScript-like SWS)
+  let notes = [60, 64, 67]
+  notes[1] = 65
+  console.log("middle=%d", notes[1])
+
+Example (SWS format)
+  frame notes=[60, 64, 67];
+  notes[1] = 65;
+  dispin("middle=%d", notes[1]);
+
+notes[1] refers to the second element, and in this example the result displayed is middle=65.
+Array indices out of range, decimals, and negative indices are errors.
+
+Ways to add or remove array elements
+
+SWS format
+  topin(value)              Add to the beginning
+  bottomin(value)           Add to the end
+  topshift()                Remove the first element
+  bottomshift()             Remove the last element
+  pointshift(index)         Remove the element at the specified index
+  pointin(index,value)      Add at the specified position
+
+JavaScript-like SWS
+  unshift(value)            Add to the beginning
+  push(value)               Add to the end
+  shift()                   Remove the first element
+  pop()                     Remove the last element
+  splice(index,1)           Remove the element at the specified index
+  splice(index,0,value)      Add at the specified position
+
+Python-like SWS
+  insert(index,value)       Add at the specified position
+  append(value)             Add to the end
+  pop(index)                Remove the element at the specified index
+  remove(value)             Remove the specified value
+
+Example operations on array notes
+
+SWS format
+  notes.topin(55);
+  notes.bottomin(72);
+  notes.pointin(1,64);
+  notes.pointshift(1);
+  notes.topshift();
+  notes.bottomshift();
+
+JavaScript-like SWS
+  notes.unshift(55)
+  notes.push(72)
+  notes.splice(1,0,64)
+  notes.splice(1,1)
+  notes.shift()
+  notes.pop()
+
+Python-like SWS
+  notes.insert(0,55)
+  notes.append(72)
+  notes.pop(1)
+  notes.remove(64)
+
+In SWS format, the positions allowed by pointin range from 0 to the number of elements in the array.
+For pointshift, specify the index of an existing element.
+In JavaScript-like SWS, push, unshift, pop, shift, and splice are available.
+In Python-like SWS, append, insert, pop, remove, extend, clear, and reverse are available.
+Array methods modify the array itself. In SWS format, pointin can also add at the end position
+(the same as the array length). If the target to delete does not exist, or required arguments are missing,
+a compile error occurs.
+
+
+VI. Notes, Tempo, and Key
+---------------------
+
+VI-I. Notes and Note Lengths
+------------------
+
+Basic form for sounding a note
+
+  snd("instrument name", denominator, note name);
+
+Example
+  snd("piano",4,C4);
+  snd("synth",8,G4);
+  snd("piano",4+,D4);
+
+Appending + after the denominator creates a dotted note.
+Rests use "null" or null for the instrument name and note name.
+
+VI-I-I. Chords with fsn
+~~~~~~~~~~~~~~~~~~~~~
+
+To play multiple notes from the same instrument and same note length at the same time in one snd,
+specify fsn=[...] instead of a note name.
+
+  snd("piano",4,fsn=[C4,E4,G4]);
+
+This example plays C4, E4, and G4 simultaneously. fsn can contain 1 to 128 note names.
+The instrument, note length, class, vol, and other specifications apply to the entire chord.
+
+VI-I-II. Simultaneous Playback with -cnt-
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To play notes with different instruments or note lengths simultaneously, chain snd commands with -cnt-.
+
+  snd("piano",4,C4)-cnt-snd("piano",4,E4)-cnt-snd("piano",4,G4);
+
+Notes on the same track start at the same position. If you specify class for each snd, you can also assign
+each note to a different track. -cnt- is used as the symbol that joins snd commands together.
+
+Note lengths can be specified using variables. Ordinary variables are interpreted as the note denominator.
+If a variable has the value 4, it is a quarter note.
+
+Voice definitions include a voice attribute indicating the type of sound source. In plugin-oriented song data,
+the voice attribute of the sound source definition is passed to each event's voice property.
+Ordinary instrument sources are false; sources with voice=true have voice=true.
+Because this is an attribute of the sound source, it is not specified in snd attributes.
+
+  snd("piano",4,C4);
+  snd("default_voice",4,C4);
+
+In the example above, the piano event has voice=false, and the default_voice event has voice=true.
+
+default_voice is the built-in "a" synthesis instrument. Events have voice=true, and in built-in playback and WAV output,
+the specified pitch is used to synthesize the fundamental and harmonics.
+The relative levels of harmonics 1 through 18 are reflected in the timbre, based on the attached spectral measurement
+(basic frequency approx. 344.5Hz).
+The 4th harmonic is strongest, and the 12th to 18th harmonics also become stronger in the higher range.
+Additionally, a noise component with a maximum of about -46dB peaking around 3-6kHz and 4.2kHz is added.
+The breath component is slightly stronger immediately after the note starts and is subdued during the sustain.
+For long notes, the attack is set to about 30ms based on the original sound measurement, and because the pitch was stable in the sustain,
+no vibrato is added. Since formant time variation is not modeled, this timbre is a prototype "a" sound.
+Because the voice property is also passed to output plugins, plugin code can handle default_voice separately.
+
+Prefixing a variable name with #: causes the value to be treated as a tick count instead of a note denominator.
+Variable names are arbitrary. For example, #:number is also a tick specification.
+PPQ is 480, so 480 ticks is a quarter note and 240 ticks is an eighth note.
+This specification can be used with snd/sleep in SWS format and sws.snd/sws.sleep in JavaScript-like
+and Python-like SWS. sleepTicks takes a tick count directly (write sleepTicks(...) in SWS format and
+sws.sleepTicks(...) in JavaScript-like and Python-like SWS). Ticks must be positive integers.
+
+Example (JavaScript-like SWS)
+  syntax="JS";
+  let noteLength = 4
+  let number = 240
+  sws.snd("piano",noteLength,C4)
+  sws.snd("piano",#:number,E4)
+  sws.sleep(#:number)
+  sws.sleepTicks(120)
+
+The legacy string-based tick specification sws.snd("piano","#480",C4) is still available.
+Normal note lengths specify the denominator; larger values result in shorter notes.
+Dotted notes are written with + after the denominator. When using tick specification, place the variable name after #:
+and set that variable to a positive integer tick count.
+For example, with PPQ=480, 120 ticks is 0.25 beats.
+
+VI-II. Instruments, Tempo, and Key
+------------------------
+
+Main built-in instruments
+  piano, grand_piano, guitar, synth, synth_lead, synth_bass,
+  bass, drum, drums, kick, hihat, hi_hat, open_hihat, snare,
+  sine, square, triangle, saw, sawtooth, default_voice
+
+The instrument list can also be checked in the Sound field of the Plugin screen.
+The names available are the instruments built into SWS. If you misspell the name,
+a compile-time error occurs.
+
+Tempo is specified in BPM. tempoconst is the initial tempo, and newtempo changes the tempo mid-song.
+
+  tempoconst="120";
+  snd("piano",4,C4);
+  newtempo="150";
+  snd("piano",4,G4);
+
+The key is specified with key. The key affects notes written afterward.
+If # or b is written explicitly in the note name, that note takes precedence.
+
+  key="G";
+  snd("piano",4,F4);
+
+Tempo and key affect notes written from that point onward.
+tempoconst specifies the initial tempo of the song, and newtempo changes the tempo mid-song.
+VII. Repetition and Branching
+-----------------
+
+VII-I. Repetition with SWS lp / for / sws.setInterval
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+lp is exclusive to SWS format. Use it for a fixed number of repetitions as follows.
+
+Sound Wav Script (SWS) format
+
+  lp(4) {
+      snd("piano",4,C4);
+  }
+
+lp is not available in JavaScript-like SWS or Python-like SWS. Use a regular for loop there.
+In Python-like SWS, write a loop such as for name in range(...).
+num is the current repetition count inside SWS lp. It starts at 1.
+
+VII-I-I. Count-specified for
+~~~~~~~~~~~~~~~~~~~
+
+Use for when you want to repeat using a counter.
+
+JavaScript-like SWS
+
+  for (let i=0; i<10; i++) {
+      console.log("i="+i)
+  }
+
+Python-like SWS
+
+  for i in range(10):
+      print(i)
+
+Sound Wav Script (SWS) format
+
+  for (frame i=0; i<10; i++) {
+      dispin("i="+i);
+  }
+
+In this example, i changes from 0 to 9, and the body is executed 10 times.
+JavaScript-like SWS uses the usual for initialization, condition, and update syntax.
+Python-like SWS's range(10) returns integers from 0 to 9.
+In SWS format, use frame name=value for initialization. number(name=value) is available when you want
+to restrict the counter to numeric values.
+
+To terminate a loop early, use break in JavaScript-like SWS and Python-like SWS.
+Python has a built-in break statement, which is also supported by this Python-like SWS.
+In SWS format, use forbreak; or end;. end; exits the innermost for loop or SWS switch.
+
+SWS format
+
+  for (frame i=0; i<10; i++) {
+      if (i == 4) {
+          forbreak;
+      }
+      dispin(i);
+  }
+
+In this example, values 0 through 3 are displayed and then the for loop ends. forbreak; may be used only within a for loop; end; exits the innermost for loop or switch. The maximum number of iterations per for loop is 8192.
+
+VII-I-II. Array traversal with for...of
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use for...of to process each element of an array or string in order.
+
+JavaScript-like SWS
+
+  const notes = [4,8,16]
+  for (const note of notes) {
+      console.log(note)
+  }
+
+Python-like SWS
+
+  notes = [4,8,16]
+  for note in notes:
+      print(note)
+
+Sound Wav Script (SWS) format
+
+  frame notes=[4,8,16];
+  for (frame note=0 of notes) {
+      dispin(note);
+  }
+
+In JS format, write for (const name of array); in SWS format, write for (frame name=initial of array).
+In SWS, initial is the initial value of the variable, which is replaced by each array element on each iteration.
+Use number(name=initial) only when you want to restrict elements to numeric values.
+In Python-like SWS, write for name in array. All three forms can traverse arrays or strings, and the maximum number of iterations per loop is 8192.
+
+VII-I-III. Repeat until the end of the song
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you want to repeat until the end of the song rather than a fixed number of times, use lp:end in SWS format.
+The end is the furthest beat position among all tracks excluding the repeated section.
+
+  lp:end(1) {
+      snd("piano",4,C4);
+  }
+  snd("piano",1,G4,class="guide");
+
+Inside lp:end, the parentheses specify the interval to repeat in beats. To specify a tick count, prefix the value with #. One beat is 480 ticks.
+
+  lp:end(#120) {
+      snd("piano",16,E4);
+  }
+
+In this example, after each processing of the main body finishes, it waits 120 ticks (1/4 beat) before executing the next one.
+Thus, the spacing between repetition starts is "the processing time of the main body + the specified wait time".
+The repetition continues until the next start position reaches the end of the song excluding the repeated section.
+
+In JavaScript-like SWS, you can write a similar repetition using function and sws.setInterval.
+
+  function pulse() {
+      sws.snd("piano",4,C4)
+  }
+  sws.setInterval(pulse, 0.5)
+  sws.snd("piano",1,G4,class="guide")
+
+sws.setInterval uses beat-based intervals rather than browser-standard milliseconds.
+The first argument is the name of a function that takes no arguments. In the example, each time the pulse processing (one beat) finishes,
+it waits 0.5 beats before calling the next one, so repetition starts advance by 1.5 beats each time.
+To specify the interval in milliseconds, omit the sws. prefix, as in setInterval(pulse,500).
+setInterval waits for the specified milliseconds before its first call and then runs the body at that fixed interval.
+The note lengths in the body do not affect the next call time. At 120 BPM, 500 ms is equivalent to one beat;
+when the tempo changes, elapsed milliseconds are converted to beat positions using the tempo map.
+The call continues until the next start position reaches the end of the song excluding the repeated section.
+If there are no instructions in the non-repeated section that advance the beat position, the end is not determined and the repetition does not run.
+For safety, the maximum number of executions in one repetition is 10,000.
+
+VII-II. if / else statements
+~~~~~~~~~~~~~~~~
+
+Use if to branch processing based on conditions. For actions when the condition is false, use else;
+for checking multiple conditions in sequence, use else if (or elif in Python-like SWS).
+
+Sound Wav Script (SWS) format
+
+  frame score=80;
+  if (score >= 90) {
+      dispin("A");
+  } else if (score >= 70) {
+      dispin("B");
+  } else {
+      dispin("C");
+  }
+
+JavaScript-like SWS
+
+  let score = 80
+  if (score >= 90) {
+      console.log("A")
+  } else if (score >= 70) {
+      console.log("B")
+  } else {
+      console.log("C")
+  }
+
+Python-like SWS
+
+  score = 80
+  if score >= 90:
+      print("A")
+  elif score >= 70:
+      print("B")
+  else:
+      print("C")
+
+Comparison operators are ==, ===, !=, !==, <, <=, >, >=.
+Logical operators are &&, ||, !.
+Arithmetic supports +, -, *, /, % (remainder), and ** (exponentiation).
+Exponentiation is evaluated from right to left. For example, 2 ** 3 ** 2 means 2 ** (3 ** 2).
+
+VII-III. switch statement
+~~~~~~~~~~~~~~
+
+In Sound Wav Script (SWS) format, write the switch value and the case values to compare against it.
+Case values can be expressions; the block whose evaluated result matches the switch value exactly, including type, is executed.
+If no case value matches, the default block is executed.
+
+  frame score=3;
+  switch (score) {
+      1||2: dispin("one or two");
+           dispin("another command in this case");
+      (3)->{ snd("piano",4,G4); endswitch; },
+      default: dispin("other");
+               snd("piano",4,A4);
+  }
+
+The `value: statement;` shorthand puts a colon after the case value and ends each statement with a semicolon.
+Use `A||B: statement;` to match when any listed case value equals the switch value.
+The shorthand case can contain multiple statements on following lines, up to the next case or default label.
+The same applies after `default:`. The existing `(value)->{...}` form remains available, and both forms can be mixed.
+endswitch; and end; can be used inside SWS format switch statements. If executed inside a case block,
+they exit the switch without executing the rest of that block. end; can also exit the innermost for loop.
+
+In JavaScript-like SWS and Python-like SWS, the switch value is compared to the case value.
+
+JavaScript-like SWS
+
+  let score = 2
+  switch (score) {
+      case 1:
+          sws.snd("piano",4,C4)
+          break
+      case 2:
+          sws.snd("piano",4,E4)
+          break
+      default:
+          sws.snd("piano",4,A4)
+  }
+
+Python-like SWS
+
+  score = 2
+  switch score:
+      case 1:
+          sws.snd("piano",4,C4)
+          break
+      case 2:
+          sws.snd("piano",4,E4)
+          break
+      default:
+          sws.snd("piano",4,A4)
+
+If no case matches, default is executed. To prevent execution from continuing to subsequent cases after a match,
+JavaScript-like SWS and Python-like SWS require break at the end of each case.
+
+VII-IV. Numeric functions
+~~~~~~~~~~~~~~
+
+Numeric functions
+
+  Function            SWS format          JavaScript-like SWS        Python-like SWS
+  Random              random()            Math.random()           random.random()
+  Floor               floor(x)            Math.floor(x)           math.floor(x)
+  Round               round(x)            Math.round(x)           round(x)
+  Maximum             max(a,b,...)        Math.max(a,b,...)       max(a,b,...)
+  Minimum             min(a,b,...)        Math.min(a,b,...)       min(a,b,...)
+  Logarithm           ln(x), log:base(value) Math.log(x), log10(x), log2(x)   math.log(x[,base]), log10(x), log2(x)
+  Trigonometry        sin/cos/tan,             Math.sin/cos/tan,                math.sin/cos/tan,
+                      arcsin/arccos/arctan     asin/acos/atan                   asin/acos/atan
+  Root                sqrt(x), A^//(B), ^//(B) (SWS only)
+
+random returns a decimal from 0 up to but not including 1. A new random value is generated each time the expression is evaluated.
+floor and round take one numeric argument; max and min take one or more numeric arguments.
+Function results can be assigned to variables or used in numeric expressions.
+
+VII-IV-I. Trigonometric functions and logarithms
+~~~~~~~~~~~~~~~~~~~~~~~
+
+SWS format
+  Use sin(x), cos(x), tan(x), arcsin(x), arccos(x), arctan(x), `ln(x)`, `sqrt(x)`, and
+  `log:base(value)`.
+  The ordinary arguments to sin, cos, and tan, and the results of arcsin, arccos, and arctan, are in degrees.
+  Prefix a sin, cos, or tan argument with # to specify radians (for example, sin(#1.5708)).
+  `log:4(16)` returns 2. Omitting the base as in `log:(100)` uses base 10 and returns 2.
+  The base must be positive and not 1, and the value must be positive. Parenthesize base expressions,
+  for example `log:(2+2)(16)`.
+  `ln(x)` is the natural logarithm and requires a positive argument. `sqrt(x)` is the square root
+  and requires a non-negative argument.
+
+JavaScript-like SWS
+  Use `Math.sin(x)`, `Math.cos(x)`, `Math.tan(x)`, `Math.asin(x)`, `Math.acos(x)`, and `Math.atan(x)`.
+  Arguments and inverse-trigonometric results are in radians. For logarithms, use natural `Math.log(x)`,
+  common `Math.log10(x)`, or base-2 `Math.log2(x)`.
+
+Python-like SWS
+  Use `math.sin(x)`, `math.cos(x)`, `math.tan(x)`, `math.asin(x)`, `math.acos(x)`, and `math.atan(x)`.
+  Arguments and inverse-trigonometric results are in radians. For logarithms, use `math.log(x)` or
+  `math.log(x, base)`, `math.log10(x)`, or `math.log2(x)`. Omitting the base from math.log uses the natural logarithm.
+
+Trigonometric and logarithmic functions in JavaScript-like and Python-like SWS follow their standard Math/math definitions.
+Python-like SWS reports errors for values outside the functions' domains.
+
+In SWS format, `A^//(B)` calculates the A-th root of B. A must be a positive integer and B numeric.
+Omitting A as in `^//(B)` defaults to the square root. Negative values support odd roots, while
+even roots of negative values and zero-degree roots are errors. This operator is SWS-only.
+`sqrt(x)` is the regular square-root function for non-negative values.
+In Python-like SWS, random and floor can be used without importing by writing random.random() and math.floor().
+In SWS format, write random(), floor(), round(), max(), min(), ln(), sqrt(), log:base(value), sin(),
+cos(), tan(), arcsin(), arccos(), and arctan() directly.
+In JavaScript-like SWS, use the standard Math form such as Math.random().
+In Python-like SWS, use random.random() and math.floor(), as well as round(), max(), and min().
+These functions can also be used inside numeric expressions.
+
+Example (SWS format)
+  frame value=random();
+  frame sine=sin(90);
+  frame sine=sin(#1.5707963267948966);
+  frame angle=arctan(1);
+  frame naturalLog=ln(16);
+  frame logarithm=log:4(16);
+  frame commonLogarithm=log:(100);
+  frame cubeRoot=3^//(8);
+  frame squareRoot=sqrt(9);
+  frame rootOperatorSquareRoot=^//(9);
+  dispin("floor="+floor(value)+", round="+round(value)+
+    ", max="+max(2,7)+", min="+min(2,7)+", sin="+sine+
+    ", angle="+angle+", ln="+naturalLog+", sqrt="+squareRoot);
+
+Example (JavaScript-like SWS)
+  let value = Math.random()
+  let sine = Math.sin(1.5707963267948966)
+  let angle = Math.asin(1)
+  let naturalLog = Math.log(16)
+  let commonLog = Math.log10(100)
+  console.log(sine,angle,naturalLog,commonLog)
+
+Example (Python-like SWS)
+  value = random.random()
+  sine = math.sin(1.5707963267948966)
+  angle = math.asin(1)
+  natural_log = math.log(16)
+  base_log = math.log(16,4)
+  print(sine,angle,natural_log,base_log)
+
+This example stores a random value in variable value and then applies multiple numeric functions to the same value.
+If you call random in separate expressions, the values may differ each time.
+VIII. Display and chips / function
+-------------------------
+
+VIII-I. Display
+-----------
+
+You can display strings or calculation results in the execution log. Strings are enclosed in double quotes.
+The + operator in display expressions is evaluated left-to-right, just like JavaScript.
+If a string is included, concatenation occurs; if both sides are numeric, addition occurs.
+
+Example (JavaScript-like SWS)
+  console.log("Calculated result:"+2+3)    Result: Calculated result:23
+  console.log("Calculated result:"+(2+3))  Result: Calculated result:5
+
+The first concatenates strings, and the second performs numeric evaluation inside the parentheses first.
+In SWS format, replace console.log with dispin, and in Python-like SWS, replace it with print.
+If you want numeric calculations to occur first, wrap them in parentheses like (2+3).
+
+console.log and dispin support the same format specifier style as JavaScript console.log.
+For example, console.log("name=%s score=%d", "SWS", 12) displays
+name=SWS score=12.
+%s, %d, %i, %f, %o, %O, %c, and %% are supported.
+The %c style specification is not applied to log display.
+In SWS format, dispin cannot concatenate strings and numbers by placing them in a comma-separated list.
+When concatenating values, use + (for example, dispin("score="+score);).
+However, when using format specifiers, you can specify one placeholder per value and write
+something like dispin("name=%s score=%d", "SWS", 12);
+In JavaScript-like SWS, console.log and in Python-like SWS print can display additional values without placeholders,
+separated by spaces.
+Python-like SWS print can also display multiple arguments. Output does not affect audio playback.
+Log messages appear in the SWS console when compiling and when playback starts, so they can be used to inspect calculations and conditions.
+
+VIII-II. chips and function
+---------------------
+
+To reuse the same phrase, define and call chips.
+In SWS format and Python-like SWS, chips do not take arguments. In SWS format, define
+functions with arguments using function or func, then call them with arguments.
+
+SWS format
+  chips riff() {
+      snd("piano",8,C4);
+      snd("piano",8,E4);
+  }
+  chips(riff);
+  chips(riff);
+
+  func phrase(note) {
+      dispin(note);
+      snd("piano",4,C4);
+  }
+  phrase(1);
+
+Python-like SWS
+  syntax="py"
+  chips riff:
+      sws.snd("piano",8,C4)
+      sws.snd("piano",8,E4)
+  chips(riff)
+
+In JavaScript-like SWS, use function or a block-bodied arrow function to pass arguments.
+
+  syntax="JS";
+  function phrase(note) {
+      if (note == 1) {
+          sws.snd("piano",4,C4)
+      } else {
+          sws.snd("piano",4,G4)
+      }
+  }
+  phrase(1)
+
+  const arrowPhrase = (note) => {
+      if (note == 1) {
+          sws.snd("piano",4,C4)
+      } else {
+          sws.snd("piano",4,G4)
+      }
+  }
+  arrowPhrase(1)
+
+The body of chips / function is executed when it is called.
+JavaScript-like SWS functions can define arguments. SWS and Python-like chips receive no arguments and, when called,
+execute the predefined sequence of notes.
+
+
+IX. Tracks
+-----------
+
+IX-I. Track assignment with the class attribute
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you specify a track name in the class attribute of snd, the note is assigned to that track.
+If class is omitted, the note is assigned to the usual default track. Within each track's editing range,
+notes assigned to the specified track are displayed there.
+
+SWS format
+
+  snd("piano",4,C4,class="melody");
+  snd("bass",4,C2,class="accompaniment");
+
+JavaScript-like SWS and Python-like SWS
+
+  sws.snd("piano",4,C4,class="melody")
+  sws.snd("bass",4,C2,class="accompaniment")
+
+If you specify a track name that does not yet exist, a track with that name is created.
+Notes with the same class are grouped into the same track.
+
+From the left panel, Tracks / Classes, you can add, select, and rename tracks.
+When adding or renaming, you can specify a CSS color name (such as tomato) or a hexadecimal color code
+(#ff6347, etc.).
+
+Tracks with compile errors are shown with a red frame and "✕".
+Tracks with warnings are shown with a yellow frame and "⚠".
+After correcting the source and recompiling, the display is updated.
+You can add or select tracks and manage notes by part.
+Track colors must be specified as CSS color names or # prefixed hexadecimal codes.
+
+
+X. Loading and Exporting Files
+--------------------------------
+
+X-I. Loading Files
+------------------------
+
+Files that can be loaded from Open
+  .ss       SWS source
+  .mid      MIDI
+  .midi     MIDI
+  .ust      UST
+
+MIDI and UST are converted into SWS source and displayed in the editor.
+MIDI format 2 cannot be read.
+After loading, edit as needed and compile to check the content.
+
+For UST loading, PBS is treated as the start coordinate, PBW as the tick width between points,
+and PBY as the height of each point, and converted into the pitch=[Y=...,X=...;...] format.
+Negative starting positions are interpolated with X=0 height.
+Decimal X coordinates are rounded to the nearest tick. PBY/PBS cent values are converted to SWS Y units (10 = one semitone).
+The PBM curve type is ignored, and pitch points are treated as linear between points.
+When exporting to UST from a project with pitchmode="on", PBS, PBW, and PBY are converted and output.
+If pitchmode is off, no pitch information is output to UST. The PBM curve type is not output.
+Pitch changes are also not output in MIDI export.
+Text information such as lyrics in UST is detected by character encoding during loading and included in the SWS source.
+
+X-II. Exporting Files
+------------------------
+
+Export formats
+  SS    Save the current source
+  WAV   Save the song as an audio file
+  MIDI  Save note events as a MIDI file
+  UST   Save as a file for singing synthesis software
+
+Loaded MIDI or UST files are converted into SWS source code.
+Because the conversion result may not exactly match the original editing state, check it in the editor,
+then fix it if necessary and compile again.
+WAV saves audio data for playback, MIDI saves note events, UST saves data for singing synthesis software,
+and SS saves editable SWS source.
+
+XI. Synthesis Engine and Plugins
+----------------------------
+
+The Sound field in the Plugin screen displays built-in instruments.
+In the Output field, you can load a matching JavaScript synthesis engine (.js) and use it for playback and WAV output.
+To return to the built-in method, select "Use built-in output".
+
+There is also a place to load an SWS Data Plugin.
+Only load plugins from trusted files.
+Synthesis engines switch the method of sound generation for playback and WAV output.
+When loading external files, confirm the source and content before use.
+
+XI-I. SWS Plugin API
+---------------------
+
+SWS has data plugins that receive song data, output plugins that generate playback audio,
+and input plugins that edit SWS source from input UI screens.
+All are created in JavaScript, but their loading locations, invocation methods, and roles differ.
+
+XI-I-I. Data plugins
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Data plugins
+
+  From the SWS Data Plugins field in the Plugin screen, load a .js file.
+  Writing plugin("plugin name"); in SWS source runs that plugin.
+  The plugin name is the file name without the .js extension.
+  When executed, the compiled song data is passed as the argument SWS.
+
+Main SWS data structures
+
+  SWS.api_version    API version. Currently 1
+  SWS.sws_version    SWS version information for the song data (current value is "0.2")
+  SWS.type           Data type. "song"
+  SWS.project        Information about the entire song
+  SWS.events         Array of note, rest, and other events
+
+  SWS.project.tempo      First tempo (BPM)
+  SWS.project.key        Song key
+  SWS.project.tempo_map  Tempo information including tempo changes
+
+Each event includes type (note or rest), instrument, start, duration,
+notes, class, track_id, volume, lyric, voice, line, source_position, and more.
+voice is a boolean passed from the sound source definition; for ordinary instrument sources it is false, and for default_voice it is true.
+This property is passed to both the SWS data plugin and the output plugin.
+start and duration are in beats. notes is an array of notes, and each note includes pitch, midi,
+key, lyric, and other fields. volume is linear volume in the range 0-100.
+SWS source vol=0-128 is converted to this value, with maximum volume becoming 100.
+The song's project.pitch_mode is the on/off state of pitchmode, and events' pitch is the points array of pitch points.
+pitch points are reflected in built-in playback and WAV output when pitchmode is on.
+External output plugins receive pitch_mode and points, but applying them to playback requires plugin-side support.
+MIDI output ignores them. UST loading converts PBS/PBW/PBY into pitch points, and UST export converts them back to PBS/PBW/PBY when pitchmode is on.
+PBM is not handled.
+
+Example to check the API version before using the data
+
+  if (SWS.api_version !== 1) {
+      throw new Error("Unsupported SWS API");
+  }
+  console.log(SWS.project.tempo);
+  console.log(SWS.events.length);
+
+Example calling from SWS source
+
+  plugin("myPlugin");
+
+In the example above, myPlugin.js must be loaded first. A copy of the song data is passed to the plugin.
+Even if the plugin modifies the data, the editor's song data itself is not changed.
+
+XI-I-II. Output plugins
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Output plugins
+
+  From the Output field in the Plugin screen, load a .js file.
+  The file must return an object with a render(song, sampleRate) function.
+  song is the song data in the same format as the data plugin, and sampleRate is the number of audio samples per second.
+  song.sample_rate also contains the sample rate.
+
+render must return left and right audio data in the following structure.
+
+  return {
+      left: new Float32Array(...),
+      right: new Float32Array(...)
+  };
+
+left and right must be non-empty Float32Arrays with the same length. Each element must be a finite audio sample value.
+The returned audio is used for playback and WAV output.
+
+XI-I-III. Input plugins
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Input plugins are plugins that create and edit SWS code from an input screen such as a piano roll.
+From the Input field on the Plugin screen, load a JavaScript file (.js) and open the plugin from the list.
+Choose "Return to Plugin List" from the plugin screen to close it. Loaded plugins are only active while the current page remains open.
+After reloading the page, load the file again.
+
+Input plugin files must return a plugin definition object when loaded. mount(container, editor) is called,
+which creates the input UI in container and reads/writes the editor source via the editor API.
+The following example is a minimal input plugin that inserts note code at the current selection when a button is pressed.
+
+  return {
+      name: "Note Input Sample",
+      mount(container, editor) {
+          const button = document.createElement("button");
+          button.textContent = "Insert piano C4";
+          button.addEventListener("click", () => {
+              editor.insertText('snd("piano",4,C4);\n');
+          });
+          container.appendChild(button);
+      }
+  };
+
+Main editor API features
+
+  getText()                         Get the source currently displayed in the editor
+  getSelection()                    Get the start position, end position, and selected text
+  insertText(text)                  Replace the current selection and insert code
+  replaceSelection(text)            Replace the current selection with the specified text
+  replaceRange(start, end, text)    Replace the specified range
+  replaceAll(text)                  Replace the entire source in the editor
+  setSelection(start, end)          Set the selection range
+
+Source editing is reflected as normal editor input, so it is included in change-state tracking and draft saving,
+and can be undone with Ctrl+Z. Input plugins operate on the editor content of the currently selected track.
+start/end are character positions from the source start, counted from 0.
+
+Input plugins, data plugins, and output plugins all execute JavaScript in the browser.
+The editor DOM itself is not passed directly via the API, but the input plugin is not isolated from the main page.
+Only load trusted files, and confirm the source and content before use.
+
+XI-I-IV. Integrated plugin packages (.ssp)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An .ssp file can bundle data, input, and output plugin settings.
+Choose an .ssp file in the Integrated field of the Plugin screen and load it.
+Each block is written in JavaScript. The leading `syntax="JS"` declaration is optional.
+`syntax="SWS"` is not supported. Use `default` to select the corresponding built-in behavior.
+The file name without its extension is used as the name for the data and input plugins.
+
+Include each block exactly once. All three blocks are required.
+default selects the standard SWS behavior without an extra plugin of that type.
+
+  dataplugin:{
+      default
+  }
+  inputplugin:{
+      default
+  }
+  outputplugin:{
+      default
+  }
+
+dataplugin default registers no additional data processing. Normal SWS compilation continues as usual;
+if plugin("file name"); is present, it runs as a no-op plugin.
+inputplugin default registers no additional input plugin, leaving the editor and built-in note-entry controls available.
+outputplugin default selects the built-in audio synthesis engine.
+Each block is loaded as a regular JavaScript plugin. The inputplugin must return an
+object with `mount(container, editor)`, and the outputplugin must return an object
+with `render(song, sampleRate)`.
+
+Example (JavaScript inputplugin)
+
+  inputplugin:{
+      syntax="JS";
+      return {
+          name: "Note input example",
+          mount(container, editor) {
+              const button = document.createElement("button");
+              button.textContent = "Insert piano C4";
+              button.addEventListener("click", () => {
+                  editor.insertText('snd("piano",4,C4);\n');
+              });
+              container.appendChild(button);
+          }
+      };
+  }
+
+Example (JavaScript outputplugin)
+
+  outputplugin:{
+      syntax="JS";
+      return {
+          render(song, sampleRate) {
+              const channel = new Float32Array(1);
+              return { left: channel, right: channel };
+          }
+      };
+  }
+
+An outputplugin must return equal-length, non-empty `Float32Array` values named
+`left` and `right`.
+These settings remain active until the page is reloaded.
+An .ssp file executes JavaScript, so only load files whose source and provider you trust.
+
+XII. If Something Goes Wrong
+---------------
+
+No sound
+  Press Compile and check whether there are any error messages.
+
+SWS format errors
+  Check the semicolon at the end of instructions and the matching of braces.
+  In SWS format, indentation is not used for syntax detection; semicolons are required to separate instructions.
+
+Python-like SWS errors
+  Check the indent width of blocks and whether full-width spaces are mixed in.
+  Indentation must be in 4-space units.
+
+Error: variable is undefined
+  Check the variable names and function arguments used in conditions or display expressions.
+
+Cannot export MIDI / UST
+  Compile the song and then export again.
+
+Note length differs from expectation
+  Check the denominator. If specifying tick count, prefix the variable name with #:
+  and confirm that the variable's value is a positive integer.
+
+Errors during array operations
+  Check whether the index is within the array bounds, and whether the position in SWS pointin is between 0 and the element count.
+  Also verify the method name and argument count match the syntax format.
+
+Errors in display or numeric functions
+  Confirm that you are using the function name appropriate to the selected syntax format.
+  Example: SWS uses floor(x), JavaScript-like SWS uses Math.floor(x), Python-like SWS uses math.floor(x).
+
+The line number and message for errors are shown in the right-side console and error panel.
+Check the surrounding lines, fix the source, and then re-run Compile.
+
+END. Credits / Usage Notes, etc.
+---------------
+Usage Notes
+- Use this tool at your own risk. Be especially careful when running plugins.
+- The author is not responsible for, and cannot compensate for, damage caused by malicious code such as plugins.
+- You may create and distribute modified versions of this file's code; however, the copyright belongs to neon_0039.
+- When creating and distributing a modified version, include the credit "neon_0039" and do not claim the original work as your own.
+- If you distribute a modified version, include the author's name or the original URL.
+- No credit is required when publishing music created with this file or browser, or .ss files. Commercial use is permitted.
+- For feature requests or bug reports, contact neon_0039. To report security vulnerabilities, use the email address listed on Misskey.
+Production: neon_0039
+X (formerly Twitter): @akibako_Iovo
+Misskey: @neo39_344@voskey.icalo.net
+Github: https://github.com/neon-0039
+ZpDIC: https://zpdic.ziphil.com/user/Hoshinoi_181
+PIXIV: https://www.pixiv.net/users/130920742
+Contact information: neon_0039@oekakiman.com
+Note: Email is not checked often. For a faster response, contact the author on Misskey.
+SWS Web Console on-line: https://neon-0039.github.io/SWS-WebConsole/
+2026/11/09 by neon_0039
