@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <meta id="page-description" name="description" content="Sound Wav Script Studio Editor — UTAU音源での再生や、コード編集に特化したデスクトップ版SWSエディター。">
+  <title id="document-title">SWS-GUIエディタについて | Sound Wav Script</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #121b2e;
+      --panel-raised: #17243b;
+      --text: #edf4ff;
+      --muted: #a7b6cc;
+      --line: rgba(190, 211, 245, 0.15);
+      --blue: #70b7ff;
+      --cyan: #66e4dc;
+      --gold: #ffd27b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 15% 0%, rgba(52, 120, 214, 0.22), transparent 42rem),
+        radial-gradient(ellipse at 100% 20%, rgba(44, 196, 184, 0.12), transparent 36rem),
+        var(--bg);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.75;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .page {
+      width: min(1080px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 28px 0 56px;
+    }
+
+    .language-switcher {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .lang-btn {
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: rgba(18, 27, 46, 0.8);
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.8rem;
+      transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+    }
+
+    .lang-btn:hover,
+    .lang-btn:focus-visible {
+      border-color: var(--blue);
+      color: #fff;
+    }
+
+    .lang-btn.active {
+      border-color: var(--blue);
+      background: #2589f4;
+      color: #fff;
+    }
+
+    .topbar,
+    .hero-actions,
+    .section-heading,
+    .card-label,
+    .footer-links {
+      display: flex;
+      align-items: center;
+    }
+
+    .topbar {
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+
+    .brand {
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-decoration: none;
+    }
+
+    .back-link {
+      color: var(--blue);
+      font-size: 0.92rem;
+      text-decoration: none;
+    }
+
+    .back-link:hover,
+    .back-link:focus-visible {
+      color: #fff;
+      text-decoration: underline;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(28px, 6vw, 64px);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(28, 48, 79, 0.94), rgba(15, 26, 44, 0.88));
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.28);
+    }
+
+    .hero::after {
+      position: absolute;
+      top: -90px;
+      right: -70px;
+      width: 280px;
+      height: 280px;
+      border: 1px solid rgba(112, 183, 255, 0.18);
+      border-radius: 50%;
+      box-shadow: 0 0 0 35px rgba(112, 183, 255, 0.035), 0 0 0 70px rgba(102, 228, 220, 0.025);
+      content: "";
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--cyan);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(2.2rem, 6vw, 4.2rem);
+      letter-spacing: -0.045em;
+      line-height: 1.15;
+    }
+
+    .hero-copy {
+      max-width: 720px;
+      margin: 22px 0 0;
+      color: #c4d2e6;
+      font-size: clamp(1.02rem, 2vw, 1.2rem);
+    }
+
+    .hero-actions {
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .button {
+      display: inline-flex;
+      min-height: 48px;
+      align-items: center;
+      justify-content: center;
+      padding: 11px 18px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.035);
+      color: var(--text);
+      font-weight: 750;
+      text-align: center;
+      text-decoration: none;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .button:hover,
+    .button:focus-visible {
+      transform: translateY(-2px);
+      border-color: var(--blue);
+      background: rgba(112, 183, 255, 0.12);
+      outline: none;
+    }
+
+    .button-primary {
+      border-color: transparent;
+      background: linear-gradient(115deg, #2589f4, #21b7c5);
+      color: #061423;
+      box-shadow: 0 10px 28px rgba(33, 155, 220, 0.24);
+    }
+
+    .button-primary:hover,
+    .button-primary:focus-visible {
+      border-color: transparent;
+      background: linear-gradient(115deg, #55aaff, #4ce0d4);
+    }
+
+    .quick-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 32px;
+    }
+
+    .fact {
+      padding: 6px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(6, 12, 24, 0.3);
+      color: #c6d6ec;
+      font-size: 0.84rem;
+    }
+
+    section {
+      margin-top: 58px;
+    }
+
+    .section-heading {
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 22px;
+    }
+
+    .section-heading h2 {
+      margin: 0;
+      font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+      letter-spacing: -0.025em;
+      line-height: 1.25;
+    }
+
+    .section-heading p {
+      max-width: 480px;
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .spotlight {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(250px, 0.75fr);
+      gap: 26px;
+      padding: clamp(22px, 4vw, 38px);
+      border: 1px solid rgba(102, 228, 220, 0.28);
+      border-radius: 18px;
+      background: linear-gradient(120deg, rgba(28, 62, 76, 0.8), rgba(18, 27, 46, 0.94) 62%);
+    }
+
+    .spotlight h3 {
+      margin: 0 0 12px;
+      color: var(--cyan);
+      font-size: 1.4rem;
+    }
+
+    .spotlight p {
+      margin: 0;
+      color: #d3deec;
+    }
+
+    .signal {
+      display: grid;
+      align-content: center;
+      gap: 10px;
+      padding: 20px;
+      border-radius: 14px;
+      background: rgba(4, 12, 22, 0.38);
+    }
+
+    .signal strong {
+      color: var(--gold);
+      font-size: 0.84rem;
+      letter-spacing: 0.08em;
+    }
+
+    .signal code,
+    code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .signal code {
+      color: #e7f2ff;
+      font-size: 0.88rem;
+      overflow-wrap: anywhere;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .feature-card {
+      min-height: 220px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(155deg, rgba(23, 36, 59, 0.88), rgba(16, 25, 42, 0.9));
+    }
+
+    .card-label {
+      gap: 10px;
+      margin-bottom: 12px;
+      color: var(--blue);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .card-label > span:first-child {
+      display: grid;
+      width: 31px;
+      height: 31px;
+      place-items: center;
+      border: 1px solid rgba(112, 183, 255, 0.25);
+      border-radius: 9px;
+      background: rgba(112, 183, 255, 0.1);
+      font-size: 1rem;
+    }
+
+    .feature-card h3 {
+      margin: 0 0 8px;
+      font-size: 1.13rem;
+    }
+
+    .feature-card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .feature-card code,
+    .feature-card strong {
+      color: #d9eaff;
+    }
+
+    .comparison {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(18, 27, 46, 0.78);
+    }
+
+    .comparison-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      border-top: 1px solid var(--line);
+    }
+
+    .comparison-row:first-child {
+      border-top: 0;
+    }
+
+    .comparison-cell {
+      padding: 16px 18px;
+      color: #c4d2e6;
+    }
+
+    .comparison-cell + .comparison-cell {
+      border-left: 1px solid var(--line);
+    }
+
+    .comparison-head .comparison-cell {
+      background: rgba(112, 183, 255, 0.08);
+      color: var(--text);
+      font-weight: 800;
+    }
+
+    .comparison-cell:first-child {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .requirements {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+    }
+
+    .requirements-card,
+    .caveat-card {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(18, 27, 46, 0.78);
+    }
+
+    .requirements-card h3,
+    .caveat-card h3 {
+      margin: 0 0 12px;
+      font-size: 1.08rem;
+    }
+
+    .requirements-card ul,
+    .caveat-card ul {
+      margin: 0;
+      padding-left: 1.2em;
+      color: var(--muted);
+    }
+
+    .requirements-card li + li,
+    .caveat-card li + li {
+      margin-top: 7px;
+    }
+
+    .caveat-card {
+      border-color: rgba(255, 210, 123, 0.25);
+    }
+
+    .caveat-card h3 {
+      color: var(--gold);
+    }
+
+    .footer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .footer p {
+      margin: 0;
+    }
+
+    .footer-links {
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    .footer a:hover,
+    .footer a:focus-visible {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 700px) {
+      .section-heading,
+      .spotlight,
+      .requirements {
+        grid-template-columns: 1fr;
+      }
+
+      .section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .page {
+        width: min(100% - 24px, 1080px);
+        padding-top: 18px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+        margin-bottom: 22px;
+      }
+
+      .hero {
+        border-radius: 18px;
+      }
+
+      .hero-actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .comparison {
+        overflow-x: auto;
+      }
+
+      .comparison-row {
+        min-width: 640px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <nav class="language-switcher" aria-label="言語 / Language" data-i18n-aria="languageLabel">
+      <button class="lang-btn" type="button" data-lang="ja" aria-pressed="false">日本語</button>
+      <button class="lang-btn" type="button" data-lang="it" aria-pressed="false">Italiano</button>
+      <button class="lang-btn" type="button" data-lang="fr" aria-pressed="false">Français</button>
+      <button class="lang-btn" type="button" data-lang="en-US" aria-pressed="false">English (US)</button>
+      <button class="lang-btn" type="button" data-lang="en-GB" aria-pressed="false">English (UK)</button>
+      <button class="lang-btn" type="button" data-lang="de" aria-pressed="false">Deutsch</button>
+    </nav>
+    <header class="topbar">
+      <a class="brand" href="index.html">SOUND WAV SCRIPT</a>
+      <a class="back-link" href="index.html" data-i18n="backHome">← トップページへ戻る</a>
+    </header>
+
+    <section class="hero" aria-labelledby="page-title">
+      <p class="eyebrow" data-i18n="eyebrow">Native Desktop Editor</p>
+      <h1 id="page-title">Sound Wav Script<br>Studio Editor</h1>
+      <p class="hero-copy" data-i18n="heroCopy">
+        SWSのコードをじっくり編集し、UTAU音源を使った歌声の確認まで。
+        Python/Tkinterで動く、テキスト編集中心のデスクトップ版エディターです。
+      </p>
+      <div class="hero-actions">
+        <a class="button button-primary" href="SWS-GUI%E3%82%A8%E3%83%87%E3%82%A3%E3%82%BF-py.zip"
+          download="SWS-GUIエディタ-py.zip" data-i18n="download">GUI版をダウンロード</a>
+        <a class="button" href="#unique-features" data-i18n="featureJump">GUI版ならではの機能を見る</a>
+        <a class="button" href="index.html" data-i18n="webPage">Web版のページへ</a>
+      </div>
+      <div class="quick-facts" aria-label="GUI版の概要" data-i18n-aria="quickFactsLabel">
+        <span class="fact" data-i18n="quickFact1">コード編集に特化</span>
+        <span class="fact" data-i18n="quickFact2">UTAU wavtool / resampler連携</span>
+        <span class="fact" data-i18n="quickFact3">MIDI・UST・WAVに対応</span>
+      </div>
+    </section>
+
+    <section id="unique-features" aria-labelledby="unique-title">
+      <div class="section-heading">
+        <h2 id="unique-title" data-i18n="uniqueTitle">GUI版ならではの強み</h2>
+        <p data-i18n="uniqueIntro">ブラウザー再生だけではなく、手元のUTAU音源と制作環境を使って、書いたコードを確かめられます。</p>
+      </div>
+      <article class="spotlight">
+        <div>
+          <h3 data-i18n="utauTitle">UTAU音源を読み込み、UTAUツールで再生</h3>
+          <p data-i18n-html="utauText">
+            音源フォルダーの <code>character.txt</code> と <code>oto.ini</code> を読み込み、
+            歌詞に対応するaliasを使って再生します。Settingsでwavtoolとresamplerを指定すれば、
+            音源のタイミング設定や音量を反映した歌声を確認できます。
+            Web版のブラウザー音源再生とは異なる、GUI版の大きな特長です。
+          </p>
+        </div>
+        <div class="signal" aria-label="UTAU再生の流れ" data-i18n-aria="workflowLabel">
+          <strong data-i18n="workflowTitle">LOCAL VOICEBANK WORKFLOW</strong>
+          <code>voicebank → oto.ini → resampler → wavtool</code>
+          <code>pitchmode="on"; pitch=[Y=0,X=0;Y=10,X=240;Y=0,X=480]</code>
+          <span data-i18n="pitchDescription">ピッチ指定はUSTのPBS/PBW/PBYと相互変換できます。</span>
+        </div>
+      </article>
+    </section>
+
+    <section aria-labelledby="features-title">
+      <div class="section-heading">
+        <h2 id="features-title" data-i18n="featuresTitle">制作を支える編集機能</h2>
+        <p data-i18n="featuresIntro">コードを書き換える、トラックを聴き分ける、別形式へ渡す。デスクトップ作業を一つの画面で。</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="card-label"><span aria-hidden="true">⌘</span><span data-i18n="tagSource">Source-first</span></div>
+          <h3 data-i18n="sourceTitle">構文に合わせたコードエディター</h3>
+          <p data-i18n="sourceText">
+            SWS・Python風・JavaScript風の構文を色分け。行番号、自動インデント、
+            折り返し、テーマや配色の調整に加え、検索・選択文字列の置換確認、
+            Undo/Redoも使えます。
+          </p>
+        </article>
+        <article class="feature-card">
+          <div class="card-label"><span aria-hidden="true">♫</span><span data-i18n="tagTrack">Track control</span></div>
+          <h3 data-i18n="trackTitle">トラックをタブで切り替えて聴き分け</h3>
+          <p data-i18n="trackText">
+            クラスごとのトラックをタブで編集し、Mute/Soloで必要なパートを確認。
+            選択トラックだけをSWS・MIDI・WAV・USTとして保存することもできます。
+          </p>
+        </article>
+        <article class="feature-card">
+          <div class="card-label"><span aria-hidden="true">↔</span><span data-i18n="tagFormat">Format bridge</span></div>
+          <h3 data-i18n="formatTitle">MIDIを編集可能なSWSソースへ</h3>
+          <p data-i18n="formatText">
+            MIDI形式0/1を読み込み、テンポ・ベロシティ・和音をSWSに変換。
+            MIDI、WAV、USTへの書き出しにも対応し、プロジェクト全体や選択トラックで使い分けられます。
+          </p>
+        </article>
+        <article class="feature-card">
+          <div class="card-label"><span aria-hidden="true">▣</span><span data-i18n="tagDesktop">Desktop workflow</span></div>
+          <h3 data-i18n="desktopTitle">ローカル作業を続けやすい</h3>
+          <p data-i18n="desktopText">
+            最近開いたファイルの一覧、自動下書き保存・復元、未保存変更の確認を備えています。
+            保存前のソースもそのままコンパイル・再生できます。
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="comparison-title">
+      <div class="section-heading">
+        <h2 id="comparison-title" data-i18n="comparisonTitle">Web版との違い</h2>
+        <p data-i18n="comparisonIntro">どちらもSWS制作に使えます。使いたい環境と再生方法で選べます。</p>
+      </div>
+      <div class="comparison" role="table" aria-label="Web版とGUI版の比較" data-i18n-aria="comparisonLabel">
+        <div class="comparison-row comparison-head" role="row">
+          <div class="comparison-cell" role="columnheader" data-i18n="tableFeature">用途・機能</div>
+          <div class="comparison-cell" role="columnheader" data-i18n="tableGui">SWS-GUIエディタ</div>
+          <div class="comparison-cell" role="columnheader" data-i18n="tableWeb">Web版</div>
+        </div>
+        <div class="comparison-row" role="row">
+          <div class="comparison-cell" role="cell" data-i18n="tableUtaFeature">UTAU音源で直接再生</div>
+          <div class="comparison-cell" role="cell" data-i18n="tableUtaGui">wavtool / resamplerと音源フォルダーを指定して再生</div>
+          <div class="comparison-cell" role="cell" data-i18n="tableUtaWeb">ブラウザー内蔵のWeb Audioで再生</div>
+        </div>
+        <div class="comparison-row" role="row">
+          <div class="comparison-cell" role="cell" data-i18n="tablePlaceFeature">使う場所</div>
+          <div class="comparison-cell" role="cell" data-i18n="tablePlaceGui">PC上で起動するデスクトップアプリ</div>
+          <div class="comparison-cell" role="cell" data-i18n="tablePlaceWeb">ブラウザーで開いてすぐ使える</div>
+        </div>
+        <div class="comparison-row" role="row">
+          <div class="comparison-cell" role="cell" data-i18n="tableUseFeature">向いている作業</div>
+          <div class="comparison-cell" role="cell" data-i18n="tableUseGui">SWSソースの編集、UTAU音源での確認、ローカルファイル管理</div>
+          <div class="comparison-cell" role="cell" data-i18n="tableUseWeb">手軽な作曲、ブラウザー内での再生・編集</div>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="requirements-title">
+      <div class="section-heading">
+        <h2 id="requirements-title" data-i18n="requirementsTitle">始める前に</h2>
+      </div>
+      <div class="requirements">
+        <div class="requirements-card">
+          <h3 data-i18n="systemTitle">動作環境と起動</h3>
+          <ul>
+            <li data-i18n="systemItem1">Windows向けのPython/Tkinterアプリです。Python 3.10以降とTkinterが必要です。</li>
+            <li data-i18n-html="systemItem2">追加のpipパッケージは不要。ZIPを展開し、フォルダー内で <code>py SWS_GUI.py</code> を実行します。</li>
+            <li data-i18n="systemItem3">UTAU再生には、利用するwavtool・resamplerとUTAU音源を別途用意してSettingsで指定してください。</li>
+            <li data-i18n="systemItem4">JavaScriptプラグインを使う場合のみ、Node.jsを別途インストールしてPATHに追加します。</li>
+          </ul>
+        </div>
+        <aside class="caveat-card">
+          <h3 data-i18n="caveatTitle">知っておいてほしいこと</h3>
+          <ul>
+            <li data-i18n="caveatItem1">ピアノロールではなく、SWSコードを直接編集するタイプのエディターです。</li>
+            <li data-i18n="caveatItem2">配布ZIPはPythonソースで、単体実行できるEXEではありません。</li>
+            <li data-i18n="caveatItem3">プラグインはコードとして実行されます。信頼できる入手元のものだけを読み込んでください。</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p data-i18n="footerLabel">Sound Wav Script Studio Editor</p>
+      <nav class="footer-links" aria-label="関連ページ" data-i18n-aria="relatedPagesLabel">
+        <a href="SWS-GUIエディタ-py/Sound%20Wav%20Script%20%E3%82%B9%E3%82%BF%E3%82%B8%E3%82%AA%E3%82%A8%E3%83%87%E3%82%A3%E3%82%BF%E3%80%80%E5%88%A9%E7%94%A8%E8%80%85%E5%90%91%E3%81%91%E3%82%AC%E3%82%A4%E3%83%89.txt" data-i18n="footerGuide">GUI版 利用者ガイド</a>
+        <a href="SWS.html" data-i18n="footerWeb">Web版を開く</a>
+        <a href="index.html" data-i18n="footerHome">トップページへ戻る</a>
+      </nav>
+    </footer>
+  </main>
+  <script>
+    const japanese = {
+      pageTitle: 'SWS-GUIエディタについて | Sound Wav Script',
+      pageDescription: 'Sound Wav Script Studio Editor — UTAU音源での再生や、コード編集に特化したデスクトップ版SWSエディター。',
+      languageLabel: '言語',
+      backHome: '← トップページへ戻る',
+      eyebrow: 'ネイティブ・デスクトップエディター',
+      heroCopy: 'SWSのコードをじっくり編集し、UTAU音源を使った歌声の確認まで。Python/Tkinterで動く、テキスト編集中心のデスクトップ版エディターです。',
+      download: 'GUI版をダウンロード',
+      featureJump: 'GUI版ならではの機能を見る',
+      webPage: 'Web版のページへ',
+      quickFactsLabel: 'GUI版の概要',
+      quickFact1: 'コード編集に特化',
+      quickFact2: 'UTAU wavtool / resampler連携',
+      quickFact3: 'MIDI・UST・WAVに対応',
+      uniqueTitle: 'GUI版ならではの強み',
+      uniqueIntro: 'ブラウザー再生だけではなく、手元のUTAU音源と制作環境を使って、書いたコードを確かめられます。',
+      utauTitle: 'UTAU音源を読み込み、UTAUツールで再生',
+      utauText: '音源フォルダーの <code>character.txt</code> と <code>oto.ini</code> を読み込み、歌詞に対応するaliasを使って再生します。Settingsでwavtoolとresamplerを指定すれば、音源のタイミング設定や音量を反映した歌声を確認できます。Web版のブラウザー音源再生とは異なる、GUI版の大きな特長です。',
+      workflowLabel: 'UTAU再生の流れ',
+      workflowTitle: 'ローカル音源での再生フロー',
+      pitchDescription: 'ピッチ指定はUSTのPBS/PBW/PBYと相互変換できます。',
+      featuresTitle: '制作を支える編集機能',
+      featuresIntro: 'コードを書き換える、トラックを聴き分ける、別形式へ渡す。デスクトップ作業を一つの画面で。',
+      tagSource: 'コード編集',
+      sourceTitle: '構文に合わせたコードエディター',
+      sourceText: 'SWS・Python風・JavaScript風の構文を色分け。行番号、自動インデント、折り返し、テーマや配色の調整に加え、検索・選択文字列の置換確認、Undo/Redoも使えます。',
+      tagTrack: 'トラック操作',
+      trackTitle: 'トラックをタブで切り替えて聴き分け',
+      trackText: 'クラスごとのトラックをタブで編集し、Mute/Soloで必要なパートを確認。選択トラックだけをSWS・MIDI・WAV・USTとして保存することもできます。',
+      tagFormat: '形式変換',
+      formatTitle: 'MIDIを編集可能なSWSソースへ',
+      formatText: 'MIDI形式0/1を読み込み、テンポ・ベロシティ・和音をSWSに変換。MIDI、WAV、USTへの書き出しにも対応し、プロジェクト全体や選択トラックで使い分けられます。',
+      tagDesktop: 'デスクトップ作業',
+      desktopTitle: 'ローカル作業を続けやすい',
+      desktopText: '最近開いたファイルの一覧、自動下書き保存・復元、未保存変更の確認を備えています。保存前のソースもそのままコンパイル・再生できます。',
+      comparisonTitle: 'Web版との違い',
+      comparisonIntro: 'どちらもSWS制作に使えます。使いたい環境と再生方法で選べます。',
+      comparisonLabel: 'Web版とGUI版の比較',
+      tableFeature: '用途・機能',
+      tableGui: 'SWS-GUIエディタ',
+      tableWeb: 'Web版',
+      tableUtaFeature: 'UTAU音源で直接再生',
+      tableUtaGui: 'wavtool / resamplerと音源フォルダーを指定して再生',
+      tableUtaWeb: 'ブラウザー内蔵のWeb Audioで再生',
+      tablePlaceFeature: '使う場所',
+      tablePlaceGui: 'PC上で起動するデスクトップアプリ',
+      tablePlaceWeb: 'ブラウザーで開いてすぐ使える',
+      tableUseFeature: '向いている作業',
+      tableUseGui: 'SWSソースの編集、UTAU音源での確認、ローカルファイル管理',
+      tableUseWeb: '手軽な作曲、ブラウザー内での再生・編集',
+      requirementsTitle: '始める前に',
+      systemTitle: '動作環境と起動',
+      systemItem1: 'Windows向けのPython/Tkinterアプリです。Python 3.10以降とTkinterが必要です。',
+      systemItem2: '追加のpipパッケージは不要。ZIPを展開し、フォルダー内で <code>py SWS_GUI.py</code> を実行します。',
+      systemItem3: 'UTAU再生には、利用するwavtool・resamplerとUTAU音源を別途用意してSettingsで指定してください。',
+      systemItem4: 'JavaScriptプラグインを使う場合のみ、Node.jsを別途インストールしてPATHに追加します。',
+      caveatTitle: '知っておいてほしいこと',
+      caveatItem1: 'ピアノロールではなく、SWSコードを直接編集するタイプのエディターです。',
+      caveatItem2: '配布ZIPはPythonソースで、単体実行できるEXEではありません。',
+      caveatItem3: 'プラグインはコードとして実行されます。信頼できる入手元のものだけを読み込んでください。',
+      footerLabel: 'Sound Wav Script Studio Editor',
+      relatedPagesLabel: '関連ページ',
+      footerGuide: 'GUI版 利用者ガイド',
+      footerWeb: 'Web版を開く',
+      footerHome: 'トップページへ戻る'
+    };
+
+    const englishUS = {
+      pageTitle: 'About the SWS GUI Editor | Sound Wav Script',
+      pageDescription: 'Sound Wav Script Studio Editor — a desktop SWS editor for source editing and playback with UTAU voicebanks.',
+      languageLabel: 'Language',
+      backHome: '← Back to home',
+      eyebrow: 'Native desktop editor',
+      heroCopy: 'Edit SWS source in a focused workspace, then check your music with a UTAU voicebank. This Python/Tkinter desktop editor is built around text-based editing.',
+      download: 'Download the GUI edition',
+      featureJump: 'Explore GUI-only strengths',
+      webPage: 'Visit the Web edition',
+      quickFactsLabel: 'GUI edition overview',
+      quickFact1: 'Built for source editing',
+      quickFact2: 'UTAU wavtool / resampler support',
+      quickFact3: 'MIDI, UST, and WAV support',
+      uniqueTitle: 'What makes the GUI edition different',
+      uniqueIntro: 'Go beyond browser playback: use your local UTAU voicebank and tools to hear the source you wrote.',
+      utauTitle: 'Load a UTAU voicebank and play it with UTAU tools',
+      utauText: 'The editor reads <code>character.txt</code> and <code>oto.ini</code> from a voicebank folder, then resolves lyric aliases for playback. Set your wavtool and resampler in Settings to hear a result that reflects the voicebank timing and note volume. This is a key difference from the Web edition’s browser-based synthesis.',
+      workflowLabel: 'UTAU playback workflow',
+      workflowTitle: 'Local voicebank workflow',
+      pitchDescription: 'Pitch curves can be converted to and from UST PBS/PBW/PBY data.',
+      featuresTitle: 'Editing tools for your workflow',
+      featuresIntro: 'Edit source, listen to individual tracks, and export to other formats—all from a desktop workspace.',
+      tagSource: 'Source editing',
+      sourceTitle: 'An editor that understands the syntax',
+      sourceText: 'Syntax highlighting for SWS, Python-like, and JavaScript-like formats. Use line numbers, auto-indent, word wrap, themes and color presets, search, confirmed selected-text replacement, and Undo/Redo.',
+      tagTrack: 'Track controls',
+      trackTitle: 'Switch tracks and listen to them separately',
+      trackText: 'Edit class-based tracks in tabs and use Mute/Solo to focus on specific parts. You can also save the selected track as SWS, MIDI, WAV, or UST.',
+      tagFormat: 'Format bridge',
+      formatTitle: 'Turn MIDI into editable SWS source',
+      formatText: 'Import MIDI format 0/1 and convert tempo, velocity, and chords to SWS. Export to MIDI, WAV, or UST, for the full project or an individual track.',
+      tagDesktop: 'Desktop workflow',
+      desktopTitle: 'Pick up where you left off',
+      desktopText: 'Keep track of recent files, recover autosaved drafts, and confirm unsaved changes. Compile and play the current source without saving it first.',
+      comparisonTitle: 'How it differs from the Web edition',
+      comparisonIntro: 'Both editions can be used to create SWS music. Choose based on your preferred workspace and playback method.',
+      comparisonLabel: 'Comparison of the Web and GUI editions',
+      tableFeature: 'Use or feature',
+      tableGui: 'SWS GUI Editor',
+      tableWeb: 'Web edition',
+      tableUtaFeature: 'Playback with a UTAU voicebank',
+      tableUtaGui: 'Select a voicebank folder, wavtool, and resampler',
+      tableUtaWeb: 'Playback with the browser’s built-in Web Audio',
+      tablePlaceFeature: 'Where it runs',
+      tablePlaceGui: 'A desktop app launched on your PC',
+      tablePlaceWeb: 'Open it in a browser and get started',
+      tableUseFeature: 'Best suited for',
+      tableUseGui: 'Editing SWS source, checking UTAU voicebanks, and managing local files',
+      tableUseWeb: 'Quick composition, playback, and editing in a browser',
+      requirementsTitle: 'Getting started',
+      systemTitle: 'Requirements and launch',
+      systemItem1: 'Designed for Windows. Requires Python 3.10 or later with Tkinter.',
+      systemItem2: 'No extra pip packages are needed. Extract the ZIP and run <code>py SWS_GUI.py</code> from the folder.',
+      systemItem3: 'For UTAU playback, provide your own wavtool, resampler, and voicebank, then select them in Settings.',
+      systemItem4: 'Node.js is only needed for JavaScript plugins; install it separately and add it to PATH.',
+      caveatTitle: 'Good to know',
+      caveatItem1: 'This is a source editor, not a piano-roll editor.',
+      caveatItem2: 'The ZIP contains Python source; it is not a standalone EXE.',
+      caveatItem3: 'Plugins run as code. Only load plugins from sources you trust.',
+      footerLabel: 'Sound Wav Script Studio Editor',
+      relatedPagesLabel: 'Related pages',
+      footerGuide: 'GUI edition user guide',
+      footerWeb: 'Open the Web edition',
+      footerHome: 'Back to home'
+    };
+
+    const translations = {
+      ja: japanese,
+      'en-US': englishUS,
+      'en-GB': {
+        ...englishUS,
+        pageTitle: 'About the SWS GUI Editor | Sound Wav Script',
+        heroCopy: 'Edit SWS source in a focused workspace, then check your music with a UTAU voicebank. This Python/Tkinter desktop editor is built around text-based editing.',
+        sourceText: 'Syntax highlighting for SWS, Python-like, and JavaScript-like formats. Use line numbers, auto-indent, word wrap, themes and colour presets, search, confirmed selected-text replacement, and Undo/Redo.',
+        systemItem1: 'Designed for Windows. Requires Python 3.10 or later with Tkinter.',
+        systemItem3: 'For UTAU playback, provide your own wavtool, resampler, and voicebank, then select them in Settings.',
+        systemItem4: 'Node.js is only needed for JavaScript plug-ins; install it separately and add it to PATH.'
+      },
+      it: {
+        pageTitle: 'Informazioni sull’editor SWS GUI | Sound Wav Script',
+        pageDescription: 'Sound Wav Script Studio Editor — editor SWS desktop per modificare il codice e riprodurre con voicebank UTAU.',
+        languageLabel: 'Lingua',
+        backHome: '← Torna alla pagina iniziale',
+        eyebrow: 'Editor desktop nativo',
+        heroCopy: 'Modifica il codice SWS in un ambiente dedicato e verifica la musica con una voicebank UTAU. Questo editor desktop Python/Tkinter è pensato per lavorare direttamente sul testo.',
+        download: 'Scarica la versione GUI',
+        featureJump: 'Scopri i vantaggi della versione GUI',
+        webPage: 'Vai alla versione Web',
+        quickFactsLabel: 'Panoramica della versione GUI',
+        quickFact1: 'Pensato per modificare il codice',
+        quickFact2: 'Supporto wavtool / resampler UTAU',
+        quickFact3: 'Supporta MIDI, UST e WAV',
+        uniqueTitle: 'Cosa distingue la versione GUI',
+        uniqueIntro: 'Oltre alla riproduzione nel browser: usa la tua voicebank UTAU locale e i relativi strumenti per ascoltare il codice scritto.',
+        utauTitle: 'Carica una voicebank UTAU e riproducila con gli strumenti UTAU',
+        utauText: 'L’editor legge <code>character.txt</code> e <code>oto.ini</code> dalla cartella della voicebank e risolve gli alias dei testi per la riproduzione. Imposta wavtool e resampler in Settings per ascoltare il risultato con i timing e il volume della voicebank. È una differenza importante rispetto alla sintesi nel browser della versione Web.',
+        workflowLabel: 'Flusso di riproduzione UTAU',
+        workflowTitle: 'Flusso con voicebank locale',
+        pitchDescription: 'Le curve di pitch possono essere convertite da e verso i dati UST PBS/PBW/PBY.',
+        featuresTitle: 'Strumenti per il flusso di lavoro',
+        featuresIntro: 'Modifica il codice, ascolta le singole tracce ed esporta in altri formati: tutto in un ambiente desktop.',
+        tagSource: 'Modifica codice',
+        sourceTitle: 'Un editor che riconosce la sintassi',
+        sourceText: 'Evidenziazione della sintassi SWS, stile Python e stile JavaScript. Include numeri di riga, rientro automatico, ritorno a capo, temi e colori, ricerca, sostituzione del testo selezionato con conferma e Undo/Redo.',
+        tagTrack: 'Controllo tracce',
+        trackTitle: 'Seleziona le tracce e ascoltale separatamente',
+        trackText: 'Modifica le tracce per classe in schede e usa Mute/Solo per concentrarti sulle parti desiderate. Puoi salvare la traccia selezionata come SWS, MIDI, WAV o UST.',
+        tagFormat: 'Conversione formati',
+        formatTitle: 'Converti MIDI in codice SWS modificabile',
+        formatText: 'Importa MIDI formato 0/1 e converti tempo, velocity e accordi in SWS. Esporta in MIDI, WAV o UST, per l’intero progetto o per una singola traccia.',
+        tagDesktop: 'Flusso desktop',
+        desktopTitle: 'Riprendi facilmente il lavoro',
+        desktopText: 'Consulta i file recenti, recupera le bozze salvate automaticamente e controlla le modifiche non salvate. Puoi compilare e riprodurre il codice corrente senza salvarlo prima.',
+        comparisonTitle: 'Differenze rispetto alla versione Web',
+        comparisonIntro: 'Entrambe le versioni permettono di creare musica SWS. Scegli in base all’ambiente di lavoro e al metodo di riproduzione che preferisci.',
+        comparisonLabel: 'Confronto tra versione Web e GUI',
+        tableFeature: 'Uso o funzione',
+        tableGui: 'Editor SWS GUI',
+        tableWeb: 'Versione Web',
+        tableUtaFeature: 'Riproduzione con voicebank UTAU',
+        tableUtaGui: 'Seleziona una cartella voicebank, wavtool e resampler',
+        tableUtaWeb: 'Riproduzione con Web Audio integrato nel browser',
+        tablePlaceFeature: 'Dove viene eseguito',
+        tablePlaceGui: 'Applicazione desktop avviata sul PC',
+        tablePlaceWeb: 'Apri nel browser e inizia a usarla',
+        tableUseFeature: 'Ideale per',
+        tableUseGui: 'Modifica del codice SWS, verifica con voicebank UTAU e gestione dei file locali',
+        tableUseWeb: 'Composizione rapida, riproduzione e modifica nel browser',
+        requirementsTitle: 'Per iniziare',
+        systemTitle: 'Requisiti e avvio',
+        systemItem1: 'Progettata per Windows. Richiede Python 3.10 o successivo con Tkinter.',
+        systemItem2: 'Non servono pacchetti pip aggiuntivi. Estrai lo ZIP ed esegui <code>py SWS_GUI.py</code> dalla cartella.',
+        systemItem3: 'Per la riproduzione UTAU, procurati wavtool, resampler e voicebank, quindi selezionali in Settings.',
+        systemItem4: 'Node.js serve solo per i plugin JavaScript: installalo separatamente e aggiungilo a PATH.',
+        caveatTitle: 'Da sapere',
+        caveatItem1: 'È un editor di codice sorgente, non un editor piano-roll.',
+        caveatItem2: 'Lo ZIP contiene codice sorgente Python, non un EXE autonomo.',
+        caveatItem3: 'I plugin vengono eseguiti come codice. Carica solo plugin provenienti da fonti affidabili.',
+        footerLabel: 'Sound Wav Script Studio Editor',
+        relatedPagesLabel: 'Pagine correlate',
+        footerGuide: 'Guida utente della versione GUI',
+        footerWeb: 'Apri la versione Web',
+        footerHome: 'Torna alla pagina iniziale'
+      },
+      fr: {
+        pageTitle: 'À propos de l’éditeur SWS GUI | Sound Wav Script',
+        pageDescription: 'Sound Wav Script Studio Editor — éditeur SWS de bureau pour modifier le code et lire des voix UTAU.',
+        languageLabel: 'Langue',
+        backHome: '← Retour à l’accueil',
+        eyebrow: 'Éditeur natif pour ordinateur',
+        heroCopy: 'Modifiez le code SWS dans un espace dédié, puis écoutez votre musique avec une banque vocale UTAU. Cet éditeur de bureau Python/Tkinter est conçu pour travailler directement sur le texte.',
+        download: 'Télécharger la version GUI',
+        featureJump: 'Découvrir les atouts de la version GUI',
+        webPage: 'Voir la version Web',
+        quickFactsLabel: 'Présentation de la version GUI',
+        quickFact1: 'Conçu pour modifier le code',
+        quickFact2: 'Prise en charge de wavtool / resampler UTAU',
+        quickFact3: 'Prise en charge de MIDI, UST et WAV',
+        uniqueTitle: 'Les atouts propres à la version GUI',
+        uniqueIntro: 'Au-delà de la lecture dans le navigateur : utilisez votre banque vocale UTAU locale et vos outils pour écouter le code écrit.',
+        utauTitle: 'Chargez une banque vocale UTAU et lisez-la avec les outils UTAU',
+        utauText: 'L’éditeur lit <code>character.txt</code> et <code>oto.ini</code> dans le dossier de la banque vocale, puis associe les alias aux paroles pour la lecture. Indiquez wavtool et resampler dans Settings pour obtenir un rendu qui tient compte des réglages de timing et du volume de la banque. C’est une différence majeure avec la synthèse dans le navigateur de la version Web.',
+        workflowLabel: 'Flux de lecture UTAU',
+        workflowTitle: 'Flux avec une banque vocale locale',
+        pitchDescription: 'Les courbes de hauteur peuvent être converties depuis et vers les données UST PBS/PBW/PBY.',
+        featuresTitle: 'Des outils pour votre processus de création',
+        featuresIntro: 'Modifiez le code, écoutez chaque piste et exportez dans d’autres formats, depuis un espace de travail de bureau.',
+        tagSource: 'Édition du code',
+        sourceTitle: 'Un éditeur adapté à la syntaxe',
+        sourceText: 'Coloration syntaxique pour SWS, le style Python et le style JavaScript. Numéros de ligne, indentation automatique, retour à la ligne, thèmes et palettes, recherche, remplacement du texte sélectionné avec confirmation, Undo/Redo.',
+        tagTrack: 'Contrôle des pistes',
+        trackTitle: 'Changez de piste et écoutez-les séparément',
+        trackText: 'Modifiez les pistes par classe dans des onglets et utilisez Mute/Solo pour isoler les parties voulues. Vous pouvez aussi enregistrer la piste sélectionnée en SWS, MIDI, WAV ou UST.',
+        tagFormat: 'Conversion de formats',
+        formatTitle: 'Convertissez le MIDI en code SWS modifiable',
+        formatText: 'Importez les fichiers MIDI de type 0/1 et convertissez tempo, vélocité et accords en SWS. Exportez en MIDI, WAV ou UST pour tout le projet ou une piste individuelle.',
+        tagDesktop: 'Flux de bureau',
+        desktopTitle: 'Reprenez facilement votre travail',
+        desktopText: 'Consultez les fichiers récents, récupérez les brouillons enregistrés automatiquement et vérifiez les modifications non enregistrées. Compilez et lisez le code actuel sans l’enregistrer au préalable.',
+        comparisonTitle: 'Différences avec la version Web',
+        comparisonIntro: 'Les deux versions permettent de créer de la musique SWS. Choisissez selon votre environnement de travail et votre méthode de lecture préférés.',
+        comparisonLabel: 'Comparaison des versions Web et GUI',
+        tableFeature: 'Usage ou fonction',
+        tableGui: 'Éditeur SWS GUI',
+        tableWeb: 'Version Web',
+        tableUtaFeature: 'Lecture avec une banque vocale UTAU',
+        tableUtaGui: 'Sélectionnez un dossier de banque vocale, wavtool et resampler',
+        tableUtaWeb: 'Lecture avec Web Audio intégré au navigateur',
+        tablePlaceFeature: 'Environnement',
+        tablePlaceGui: 'Application de bureau lancée sur votre PC',
+        tablePlaceWeb: 'Ouvrez-la dans un navigateur et commencez',
+        tableUseFeature: 'Idéal pour',
+        tableUseGui: 'Modifier le code SWS, vérifier des voix UTAU et gérer des fichiers locaux',
+        tableUseWeb: 'Composer rapidement, lire et modifier dans le navigateur',
+        requirementsTitle: 'Pour commencer',
+        systemTitle: 'Configuration et lancement',
+        systemItem1: 'Conçue pour Windows. Nécessite Python 3.10 ou ultérieur avec Tkinter.',
+        systemItem2: 'Aucun paquet pip supplémentaire n’est requis. Extrayez le ZIP et exécutez <code>py SWS_GUI.py</code> dans le dossier.',
+        systemItem3: 'Pour la lecture UTAU, fournissez votre wavtool, votre resampler et votre banque vocale, puis sélectionnez-les dans Settings.',
+        systemItem4: 'Node.js est nécessaire uniquement pour les plugins JavaScript ; installez-le séparément et ajoutez-le au PATH.',
+        caveatTitle: 'À savoir',
+        caveatItem1: 'Il s’agit d’un éditeur de code source, pas d’un éditeur piano-roll.',
+        caveatItem2: 'Le ZIP contient du code source Python, pas un EXE autonome.',
+        caveatItem3: 'Les plugins s’exécutent comme du code. Ne chargez que ceux provenant de sources fiables.',
+        footerLabel: 'Sound Wav Script Studio Editor',
+        relatedPagesLabel: 'Pages associées',
+        footerGuide: 'Guide utilisateur de la version GUI',
+        footerWeb: 'Ouvrir la version Web',
+        footerHome: 'Retour à l’accueil'
+      },
+      de: {
+        pageTitle: 'Über den SWS-GUI-Editor | Sound Wav Script',
+        pageDescription: 'Sound Wav Script Studio Editor — ein Desktop-SWS-Editor zum Bearbeiten von Quelltext und Abspielen mit UTAU-Voicebanks.',
+        languageLabel: 'Sprache',
+        backHome: '← Zur Startseite',
+        eyebrow: 'Native Desktop-Anwendung',
+        heroCopy: 'Bearbeiten Sie SWS-Quelltext in einer fokussierten Umgebung und prüfen Sie Ihre Musik mit einer UTAU-Voicebank. Dieser Python/Tkinter-Desktop-Editor ist auf textbasiertes Arbeiten ausgelegt.',
+        download: 'GUI-Version herunterladen',
+        featureJump: 'Besondere GUI-Funktionen entdecken',
+        webPage: 'Zur Web-Version',
+        quickFactsLabel: 'Überblick zur GUI-Version',
+        quickFact1: 'Für Quelltextbearbeitung ausgelegt',
+        quickFact2: 'Unterstützt UTAU wavtool / resampler',
+        quickFact3: 'Unterstützt MIDI, UST und WAV',
+        uniqueTitle: 'Die besonderen Stärken der GUI-Version',
+        uniqueIntro: 'Mehr als Browser-Wiedergabe: Nutzen Sie Ihre lokale UTAU-Voicebank und Werkzeuge, um den geschriebenen Quelltext anzuhören.',
+        utauTitle: 'UTAU-Voicebank laden und mit UTAU-Werkzeugen abspielen',
+        utauText: 'Der Editor liest <code>character.txt</code> und <code>oto.ini</code> aus einem Voicebank-Ordner und ordnet Liedtexten passende Aliasnamen zu. Legen Sie wavtool und resampler in den Settings fest, um Timing und Lautstärke der Voicebank bei der Wiedergabe zu berücksichtigen. Das ist ein wesentlicher Unterschied zur browserbasierten Synthese der Web-Version.',
+        workflowLabel: 'UTAU-Wiedergabeablauf',
+        workflowTitle: 'Ablauf mit lokaler Voicebank',
+        pitchDescription: 'Pitch-Kurven lassen sich in UST-PBS/PBW/PBY-Daten umwandeln und daraus zurückkonvertieren.',
+        featuresTitle: 'Werkzeuge für den Produktionsablauf',
+        featuresIntro: 'Quelltext bearbeiten, einzelne Spuren anhören und in andere Formate exportieren – in einer Desktop-Arbeitsumgebung.',
+        tagSource: 'Quelltextbearbeitung',
+        sourceTitle: 'Ein Editor mit Syntaxhervorhebung',
+        sourceText: 'Syntaxhervorhebung für SWS, Python-ähnliche und JavaScript-ähnliche Formate. Mit Zeilennummern, automatischem Einrücken, Zeilenumbruch, Designs und Farbsätzen, Suche, bestätigtem Ersetzen markierter Texte sowie Undo/Redo.',
+        tagTrack: 'Spursteuerung',
+        trackTitle: 'Spuren wechseln und einzeln anhören',
+        trackText: 'Bearbeiten Sie klassenzugeordnete Spuren in Tabs und verwenden Sie Mute/Solo, um einzelne Parts zu prüfen. Die ausgewählte Spur lässt sich auch als SWS, MIDI, WAV oder UST speichern.',
+        tagFormat: 'Formatumwandlung',
+        formatTitle: 'MIDI in editierbaren SWS-Quelltext umwandeln',
+        formatText: 'Importieren Sie MIDI-Dateien im Format 0/1 und wandeln Sie Tempo, Velocity und Akkorde in SWS um. Exportieren Sie das gesamte Projekt oder einzelne Spuren als MIDI, WAV oder UST.',
+        tagDesktop: 'Desktop-Arbeitsablauf',
+        desktopTitle: 'Einfach dort weitermachen, wo Sie aufgehört haben',
+        desktopText: 'Behalten Sie zuletzt geöffnete Dateien im Blick, stellen Sie automatisch gespeicherte Entwürfe wieder her und prüfen Sie ungespeicherte Änderungen. Der aktuelle Quelltext lässt sich auch ohne vorheriges Speichern kompilieren und abspielen.',
+        comparisonTitle: 'Unterschiede zur Web-Version',
+        comparisonIntro: 'Mit beiden Versionen können Sie SWS-Musik erstellen. Wählen Sie nach Arbeitsumgebung und bevorzugter Wiedergabe.',
+        comparisonLabel: 'Vergleich der Web- und GUI-Version',
+        tableFeature: 'Einsatz oder Funktion',
+        tableGui: 'SWS-GUI-Editor',
+        tableWeb: 'Web-Version',
+        tableUtaFeature: 'Wiedergabe mit UTAU-Voicebank',
+        tableUtaGui: 'Voicebank-Ordner, wavtool und resampler auswählen',
+        tableUtaWeb: 'Wiedergabe mit integriertem Web Audio des Browsers',
+        tablePlaceFeature: 'Ausführungsumgebung',
+        tablePlaceGui: 'Desktop-Anwendung auf dem PC',
+        tablePlaceWeb: 'Im Browser öffnen und direkt loslegen',
+        tableUseFeature: 'Besonders geeignet für',
+        tableUseGui: 'SWS-Quelltext bearbeiten, UTAU-Voicebanks prüfen und lokale Dateien verwalten',
+        tableUseWeb: 'Schnelles Komponieren, Abspielen und Bearbeiten im Browser',
+        requirementsTitle: 'Erste Schritte',
+        systemTitle: 'Voraussetzungen und Start',
+        systemItem1: 'Für Windows vorgesehen. Erfordert Python 3.10 oder höher mit Tkinter.',
+        systemItem2: 'Keine zusätzlichen pip-Pakete erforderlich. Entpacken Sie das ZIP und führen Sie im Ordner <code>py SWS_GUI.py</code> aus.',
+        systemItem3: 'Für die UTAU-Wiedergabe benötigen Sie wavtool, resampler und eine Voicebank. Wählen Sie diese in den Settings aus.',
+        systemItem4: 'Node.js wird nur für JavaScript-Plugins benötigt. Installieren Sie es separat und fügen Sie es dem PATH hinzu.',
+        caveatTitle: 'Wichtige Hinweise',
+        caveatItem1: 'Dies ist ein Quelltexteditor, kein Piano-Roll-Editor.',
+        caveatItem2: 'Das ZIP enthält Python-Quelltext und ist keine eigenständige EXE.',
+        caveatItem3: 'Plugins werden als Code ausgeführt. Laden Sie nur Plugins aus vertrauenswürdigen Quellen.',
+        footerLabel: 'Sound Wav Script Studio Editor',
+        relatedPagesLabel: 'Verwandte Seiten',
+        footerGuide: 'Benutzerhandbuch der GUI-Version',
+        footerWeb: 'Web-Version öffnen',
+        footerHome: 'Zur Startseite'
+      }
+    };
+
+    const supportedLanguages = Object.keys(translations);
+
+    function setLanguage(language, persist) {
+      const content = translations[language];
+      if (!content) return;
+
+      document.querySelectorAll('[data-i18n]').forEach(element => {
+        element.textContent = content[element.dataset.i18n];
+      });
+      document.querySelectorAll('[data-i18n-html]').forEach(element => {
+        element.innerHTML = content[element.dataset.i18nHtml];
+      });
+      document.querySelectorAll('[data-i18n-aria]').forEach(element => {
+        element.setAttribute('aria-label', content[element.dataset.i18nAria]);
+      });
+
+      document.title = content.pageTitle;
+      document.getElementById('page-description').setAttribute('content', content.pageDescription);
+      document.documentElement.lang = language;
+
+      document.querySelectorAll('.lang-btn').forEach(button => {
+        const active = button.dataset.lang === language;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+
+      if (persist) {
+        localStorage.setItem('swsGuiLanguage', language);
+        localStorage.setItem('swsLanguage', language);
+      }
+    }
+
+    document.querySelectorAll('.lang-btn').forEach(button => {
+      button.addEventListener('click', () => setLanguage(button.dataset.lang, true));
+    });
+
+    const savedLanguage = localStorage.getItem('swsLanguage');
+    const savedGuiLanguage = localStorage.getItem('swsGuiLanguage');
+    const browserLanguage = (navigator.language || navigator.userLanguage || '').toLowerCase();
+    const browserMatch = browserLanguage.startsWith('ja')
+      ? 'ja'
+      : browserLanguage.startsWith('de')
+        ? 'de'
+        : browserLanguage.startsWith('it')
+          ? 'it'
+          : browserLanguage.startsWith('fr')
+            ? 'fr'
+            : browserLanguage.startsWith('en-gb')
+              ? 'en-GB'
+              : 'en-US';
+    const initialLanguage = supportedLanguages.includes(savedLanguage)
+      ? savedLanguage
+      : supportedLanguages.includes(savedGuiLanguage)
+        ? savedGuiLanguage
+        : browserMatch || 'ja';
+
+    setLanguage(initialLanguage, false);
+  </script>
+</body>
+</html>
