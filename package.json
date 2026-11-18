@@ -1,0 +1,37 @@
+{
+  "name": "sws-web-console",
+  "version": "0.2.0",
+  "description": "Sound Wav Script Web Console",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "serve": "bundle exec jekyll serve",
+    "build": "bundle exec jekyll build"
+  },
+  "keywords": [
+    "music",
+    "synthesis",
+    "web-audio",
+    "script",
+    "notation",
+    "ust",
+    "midi"
+  ],
+  "author": "neon_0039 (https://github.com/neon_0039)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/neon_0039/SWS-WebConsole.git"
+  },
+  "homepage": "https://neon_0039.github.io/SWS-WebConsole/",
+  "bugs": {
+    "url": "https://github.com/neon_0039/SWS-WebConsole/issues"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@babel/preset-env": "^7.23.0",
+    "babel-loader": "^9.1.0",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.0"
+  },
+  "dependencies": {}
+}
